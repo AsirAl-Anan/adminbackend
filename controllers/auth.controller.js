@@ -33,12 +33,18 @@ export const adminLoginController = async (req, res) => {
       })
     }
 
-    req.session.admin = response.email
-   console.log(req.session.admin)
-    res.status(200).json({
-      success: true,
-      response:response.email,
-    })
+  req.session.admin = response.email;
+
+req.session.save((err) => {
+  if (err) {
+    console.error("Session Save Error:", err);
+    return res.status(500).json({ success: false, message: "Session save failed" });
+  }
+
+  console.log("Session ID:", req.session.id);
+  res.status(200).json({ success: true, response: response.email });
+});
+
   } catch (error) {
     console.error(error)
     res.status(500).json({
@@ -74,7 +80,6 @@ req.session.save((err) => {
     });
   } 
   console.log("Session saved successfully", req.session.admin);
-  res.cookie("admin", response.email)
   res.status(200).json({
     success: true,
     response: response.email,

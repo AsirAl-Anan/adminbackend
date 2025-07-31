@@ -33,20 +33,21 @@ app.use(
 );
 console.log( process.env.SESSION_SECRET)
 app.use(
-    session({
-        store: new RedisStore({ client: redisClient }),
-        secret: process.env.SESSION_SECRET,
-        resave: false,
-        saveUninitialized: false,
-        name: "admin",
-        cookie: {
-            httpOnly:true, // true in production
-            secure:true, // true in production
-            sameSite: 'none', 
-            maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-        },
-    })
+  session({
+    store: new RedisStore({ client: redisClient }),
+    secret: process.env.SESSION_SECRET,
+    resave: false,
+    saveUninitialized: false,
+    name: "admin",
+    cookie: {  // ✅ this must be here
+      httpOnly: true,
+      secure: true,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60 * 24 * 7
+    }
+  })
 );
+
 app.use((req, res, next) => {
   const originalSend = res.send;
   res.send = function (body) {
