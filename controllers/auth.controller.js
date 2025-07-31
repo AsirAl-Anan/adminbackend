@@ -5,13 +5,14 @@ export const adminLoginController = async (req, res) => {
   const { email, password } = req.body
 
   try {
-    console.log(email, password)
+ 
     if(!email || !password){
       return res.status(400).json({
         success: false,
         message: "Please provide email and password",
       })
     }
+    
     const response = await loginAdmin(email, password)
 
     if (response === "no-admin") {
@@ -40,6 +41,7 @@ req.session.save((err) => {
     console.error("Session Save Error:", err);
     return res.status(500).json({ success: false, message: "Session save failed" });
   }
+res.setHeader('Cache-Control', 'no-store');
 
   console.log("Session ID:", req.session.id);
   res.status(200).json({ success: true, response: response.email });

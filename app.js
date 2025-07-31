@@ -31,6 +31,8 @@ app.use(
         
     })
 );
+app.set('trust proxy', 1);
+
 console.log( process.env.SESSION_SECRET)
 const sessionMiddleware = session({
   store: new RedisStore({ client: redisClient }),
