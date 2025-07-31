@@ -64,11 +64,22 @@ export const adminRegisterController = async (req, res) =>{
             message: "Admin already exists",
           })
     }
-    req.session.admin = response.email
-    res.status(201).json({
-        success: true,
-        response,
-      })
+   req.session.admin = response.email;
+req.session.save((err) => {
+  if (err) {
+    console.error("Session save error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Session could not be saved",
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    response: response.email,
+  });
+});
+
     } catch (error) {
         res.status(500).json(error)
     }

@@ -20,6 +20,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+console.log("Client URL:", process.env.CLIENT_URL);
 app.use(
     cors({
         origin: process.env.CLIENT_URL,
@@ -38,13 +39,14 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            httpOnly: false,
-            secure: process.env.NODE_ENV === "production", // true in production
-            sameSite: "lax",
+            httpOnly:true, // true in production
+            secure:true, // true in production
+            sameSite: "none",
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },
     })
 );
+
 app.use(express.static("uploads"))
 
 app.use("/api/v1/auth", AuthRouter);

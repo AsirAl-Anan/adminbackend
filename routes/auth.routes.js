@@ -5,6 +5,8 @@ const router = Router();
 
 router.post("/login", adminLoginController);
 router.post("/register", adminRegisterController);
+
+
 router.get('/get-user', verifyUser, (req,res)=>{
   
   
