@@ -1,0 +1,218 @@
+{
+  "sscCommerceSubjects": [
+    {
+      "BanglaFirstPaper": {
+        "গদ্য": [
+          "শুভা",
+          "বইপড়া",
+          "আম-আঁটির ভেঁপু",
+          "মানব ধর্ম",
+          "শিক্ষা ও মনুষ্যত্ব"
+        ],
+        "পদ্য": [
+          "বঙ্গবাণী",
+          "কপোতাক্ষ নদ",
+          "জীবন সঙ্গীত",
+          "পল্লী জননী",
+          "তোমাকে পাওয়ার জন্য, হে স্বাধীনতা"
+        ],
+        "উপন্যাস": [
+          "কাকতাড়ুয়া - মূলভাব, চরিত্র, ঘটনা"
+        ],
+        "নাটক": [
+          "বহিপীর - মূলভাব, চরিত্র, ঘটনা"
+        ]
+      }
+    },
+    {
+      "BanglaSecondPaper": {
+        "ব্যাকরণ": [
+          "ধ্বনি ও বর্ণ",
+          "সন্ধি",
+          "সমাস",
+          "উপসর্গ",
+          "প্রত্যয়",
+          "বাক্য প্রকরণ",
+          "কারক ও বিভক্তি"
+        ],
+        "নির্মিতি": [
+          "ভাবসম্প্রসারণ",
+          "সারাংশ/সারমর্ম",
+          "প্রবন্ধ রচনা",
+          "পত্র লিখন/আবেদনপত্র",
+          "প্রতিবেদন লিখন"
+        ]
+      }
+    },
+    {
+      "EnglishFirstPaper": {
+        "ReadingTest": [
+          "Unseen Passage (Information Transfer, Summarizing)",
+          "Seen Passage (MCQ, Answering Questions)"
+        ],
+        "WritingTest": [
+          "Paragraph Writing",
+          "Completing Story",
+          "Email Writing",
+          "Dialogue Writing",
+          "Graph/Chart Description"
+        ]
+      }
+    },
+    {
+      "EnglishSecondPaper": {
+        "Grammar": [
+          "Articles",
+          "Prepositions",
+          "Right Forms of Verbs",
+          "Narration",
+          "Transformation of Sentences",
+          "Tag Questions",
+          "Punctuation"
+        ],
+        "Composition": [
+          "CV Writing with Cover Letter",
+          "Formal Letter Writing",
+          "Paragraph Writing",
+          "Composition Writing"
+        ]
+      }
+    },
+    {
+      "Mathematics": {
+        "SetAndFunction": [
+          "Set Operations",
+          "Types of Functions"
+        ],
+        "AlgebraicExpressions": [
+          "Factorization",
+          "Rational Fractions",
+          "Equations"
+        ],
+        "Geometry": [
+          "Theorems on Circles",
+          "Construction",
+          "Solid Geometry (Prism, Pyramid)"
+        ],
+        "Trigonometry": [
+          "Trigonometric Ratios",
+          "Heights and Distances"
+        ],
+        "Statistics": [
+          "Measures of Central Tendency",
+          "Measures of Dispersion",
+          "Frequency Distribution"
+        ]
+      }
+    },
+    {
+      "Accounting": {
+        "IntroductionToAccounting": [
+          "Definition and Scope",
+          "Users of Accounting Information"
+        ],
+        "AccountingEquation": [
+          "Assets, Liabilities, Equity",
+          "Impact of Transactions"
+        ],
+        "Journal": [
+          "Rules of Debit and Credit",
+          "Recording Transactions"
+        ],
+        "Ledger": [
+          "Posting from Journal",
+          "Balancing Accounts"
+        ],
+        "TrialBalance": [
+          "Preparation",
+          "Errors and Their Rectification"
+        ],
+        "FinancialStatements": [
+          "Income Statement",
+          "Statement of Financial Position (Balance Sheet)"
+        ]
+      }
+    },
+    {
+      "BusinessEntrepreneurship": {
+        "ConceptOfBusiness": [
+          "Types of Business",
+          "Objectives"
+        ],
+        "EntrepreneurshipAndEntrepreneur": [
+          "Qualities of an Entrepreneur",
+          "Importance of Entrepreneurship"
+        ],
+        "BusinessPlanning": [
+          "Business Idea Generation",
+          "Feasibility Study"
+        ],
+        "SourcesOfFinance": [
+          "Own Capital",
+          "Borrowed Capital"
+        ],
+        "Marketing": [
+          "Product",
+          "Price",
+          "Place",
+          "Promotion"
+        ],
+        "BusinessEthicsAndSocialResponsibility": [
+          "Ethical Principles",
+          "CSR"
+        ]
+      }
+    },
+    {
+      "FinanceAndBanking": {
+        "ConceptOfFinance": [
+          "Definition",
+          "Importance"
+        ],
+        "SourcesOfFinance": [
+          "Short-term",
+          "Medium-term",
+          "Long-term"
+        ],
+        "BankingSystem": [
+          "Types of Banks",
+          "Functions of Commercial Banks"
+        ],
+        "CentralBank": [
+          "Functions of Central Bank",
+          "Monetary Policy"
+        ],
+        "Investment": [
+          "Types of Investment",
+          "Risk and Return"
+        ]
+      }
+    },
+    {
+      "InformationAndCommunicationTechnologyICT": {
+        "InformationAndCommunicationTechnologyAndOurBangladesh": [
+          "ICT in daily life",
+          "Digital Bangladesh"
+        ],
+        "ComputerAndComputerUserSecurity": [
+          "Malware",
+          "Cybercrime"
+        ],
+        "MyEducationAndInternet": [
+          "Online learning resources"
+        ],
+        "MyLifeAndICT": [
+          "Impact of ICT on society"
+        ],
+        "UseOfMultimedia": [
+          "Graphics",
+          "Animation"
+        ],
+        "Database": [
+          "Introduction to Database",
+          "Data types"
+        ]
+      }
+    }
+  ]
+}
