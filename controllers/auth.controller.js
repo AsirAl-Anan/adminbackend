@@ -73,6 +73,7 @@ req.session.save((err) => {
       message: "Session could not be saved",
     });
   } 
+  console.log("Session saved successfully", req.session.admin);
   res.cookie("admin", response.email)
   res.status(200).json({
     success: true,

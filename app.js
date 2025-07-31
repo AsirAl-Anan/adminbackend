@@ -27,11 +27,11 @@ app.use(
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE"],
         allowedHeaders: ["Content-Type", "Authorization"],
-        exposedHeaders: ["Set-Cookie"],
+      
         
     })
 );
-
+console.log( process.env.SESSION_SECRET)
 app.use(
     session({
         store: new RedisStore({ client: redisClient }),
@@ -43,7 +43,7 @@ app.use(
             httpOnly:true, // true in production
             secure:true, // true in production
             sameSite: 'none', 
-             domain: 'https://uttor-admin.netlify.app',
+domain: 'uttor-admin.netlify.app',
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },
     })
