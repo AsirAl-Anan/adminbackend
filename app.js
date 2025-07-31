@@ -39,7 +39,6 @@ const sessionMiddleware = session({
   secret: process.env.SESSION_SECRET,
   resave: false,
   saveUninitialized: true,
-  name: "admin",
   cookie: {
     httpOnly: true,
     secure: true,
