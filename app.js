@@ -38,10 +38,12 @@ app.use(
         secret: process.env.SESSION_SECRET,
         resave: false,
         saveUninitialized: false,
+        name: "admin",
         cookie: {
             httpOnly:true, // true in production
             secure:true, // true in production
-            sameSite: "none",
+            sameSite: 'none', 
+             domain: '.domain.com',
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },
     })
