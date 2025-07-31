@@ -36,7 +36,7 @@ const sessionMiddleware = session({
   store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET,
   resave: false,
-  saveUninitialized: false,
+  saveUninitialized: true,
   name: "admin",
   cookie: {
     httpOnly: true,
