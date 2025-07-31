@@ -32,22 +32,31 @@ app.use(
     })
 );
 console.log( process.env.SESSION_SECRET)
-app.use(
-  session({
-    store: new RedisStore({ client: redisClient }),
-    secret: process.env.SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    name: "admin",
-    cookie: {  // ✅ this must be here
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60 * 24 * 7
-    }
-  })
-);
+const sessionMiddleware = session({
+  store: new RedisStore({ client: redisClient }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
+  saveUninitialized: false,
+  name: "admin",
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  },
+});
 
+console.log("SESSION CONFIG:", {
+  cookie: sessionMiddleware.cookie,
+  name: sessionMiddleware.name
+});
+
+app.use(sessionMiddleware);
+
+app.use((req, res, next) => {
+    console.log("Session ID:", req.session);
+    next();
+ });
 app.use((req, res, next) => {
   const originalSend = res.send;
   res.send = function (body) {
