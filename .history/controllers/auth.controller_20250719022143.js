@@ -1,5 +1,0 @@
-import { loginAdmin } from "../services/auth.service.js"
-export const adminLoginController = (req,res) =>{
-    
-
-}

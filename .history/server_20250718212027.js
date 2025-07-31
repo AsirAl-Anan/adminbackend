@@ -1,1 +1,0 @@
-import { configDotenv } from "dotenv";
