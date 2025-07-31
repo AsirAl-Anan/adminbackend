@@ -1,5 +1,5 @@
 // services/question.service.js
-import CreativeQuestion from '../models/CreativeQuestion.model.js'; // Ensure correct path
+import CreativeQuestion from '../models/creativeQuestion.model.js'; // Ensure correct path
 
 // Create a new question
 export const createQuestion = async (questionData) => {
