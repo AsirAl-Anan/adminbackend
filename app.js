@@ -43,11 +43,18 @@ app.use(
             httpOnly:true, // true in production
             secure:true, // true in production
             sameSite: 'none', 
-domain: 'uttor-admin.netlify.app',
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },
     })
 );
+app.use((req, res, next) => {
+  const originalSend = res.send;
+  res.send = function (body) {
+    console.log("Set-Cookie Header:", res.getHeader('Set-Cookie'));
+    return originalSend.call(this, body);
+  };
+  next();
+});
 
 app.use(express.static("uploads"))
 
