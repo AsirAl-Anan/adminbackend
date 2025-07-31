@@ -43,7 +43,7 @@ app.use(
             httpOnly:true, // true in production
             secure:true, // true in production
             sameSite: 'none', 
-             domain: '.domain.com',
+             domain: 'https://uttor-admin.netlify.app',
             maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
         },
     })
