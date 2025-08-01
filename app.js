@@ -38,6 +38,18 @@ const sessionMiddleware = session({
   store: new RedisStore({ client: redisClient }),
   secret: process.env.SESSION_SECRET,
   resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: true,
+    sameSite: "none",
+    maxAge: 1000 * 60 * 60 * 24 * 7,
+  },
+});
+const sessionMiddleware2 = session({
+  store: new RedisStore({ client: redisClient }),
+  secret: process.env.SESSION_SECRET,
+  resave: false,
   saveUninitialized: true,
   cookie: {
     httpOnly: true,
@@ -46,7 +58,6 @@ const sessionMiddleware = session({
     maxAge: 1000 * 60 * 60 * 24 * 7,
   },
 });
-
 console.log("SESSION CONFIG:", {
   cookie: sessionMiddleware.cookie,
   name: sessionMiddleware.name
