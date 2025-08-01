@@ -40,39 +40,21 @@ const sessionMiddleware = session({
   resave: false,
   saveUninitialized: false,
   cookie: {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
+    httpOnly: process.env.NODE_ENV === 'production',
+    secure:   process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax' ,
     maxAge: 1000 * 60 * 60 * 24 * 7,
   },
 });
-const sessionMiddleware2 = session({
-  store: new RedisStore({ client: redisClient }),
-  secret: process.env.SESSION_SECRET,
-  resave: false,
-  saveUninitialized: true,
-  cookie: {
-    httpOnly: true,
-    secure: true,
-    sameSite: "none",
-    maxAge: 1000 * 60 * 60 * 24 * 7,
-  },
-});
-console.log("SESSION CONFIG:", {
-  cookie: sessionMiddleware.cookie,
-  name: sessionMiddleware.name
-});
+
 
 app.use(sessionMiddleware);
 
-app.use((req, res, next) => {
-    console.log("Session ID:", req.session);
-    next();
- });
+
 app.use((req, res, next) => {
   const originalSend = res.send;
   res.send = function (body) {
-    console.log("Set-Cookie Header:", res.getHeader('Set-Cookie'));
+    console.log("Set-Cookie :", sessionMiddleware2 );
     return originalSend.call(this, body);
   };
   next();

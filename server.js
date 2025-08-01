@@ -34,7 +34,7 @@ io.on("connection", (socket) =>{
 connectDb().then(()=>{
     console.log('db connected')
 })
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT ;
 server.listen(process.env.PORT, ()=>{
     
     console.log(`server is running on port ${process.env.PORT}`)
