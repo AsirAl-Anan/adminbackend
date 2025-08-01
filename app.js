@@ -51,14 +51,7 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 
 
-app.use((req, res, next) => {
-  const originalSend = res.send;
-  res.send = function (body) {
-    console.log("Set-Cookie :", sessionMiddleware2 );
-    return originalSend.call(this, body);
-  };
-  next();
-});
+
 
 app.use(express.static("uploads"))
 
