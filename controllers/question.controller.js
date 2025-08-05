@@ -93,11 +93,9 @@ export const getQuestionsBySubject = async (req, res) => {
 
 // Get questions by subject ID and level (group default from subject)
 export const getQuestionsBySubjectAndLevel = async (req, res) => {
-  console.log("Controller - Get Questions By Subject and Level:", req.params, req.query);
   try {
     const { subjectId } = req.params;
     const { level, group } = req.query; // group is optional
-    console.log(`Subject ID: ${subjectId}, Level: ${level}, Group: ${group}`);
     if (!level) {
       return res.status(400).json({
         success: false,
@@ -161,6 +159,12 @@ export const getQuestionsByData = async (req, res) => {
 export const editQuestion = async (req, res) => {
   try {
     const { id } = req.params;
+      if(!req.body){
+        return res.status(400).json({
+          success: false,
+          message: 'Request body is empty'
+        });
+      }
     const result = await questionService.updateQuestion(id, req.body);
     if (result.success) {
       res.status(200).json({

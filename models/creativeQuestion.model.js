@@ -93,7 +93,7 @@ const creativeQuestionSchema = new mongoose.Schema({
   board: {
     type: String,
     enum: [
-      'Dhaka', 'Rajshahi', 'Chittagong', 'Barisal',
+      'Dhaka', 'Rajshahi', 'Chittagong', 
       'Sylhet', 'Comilla', 'Jessore', 'Dinajpur',
       'Mymensingh', 'Madrasah', 'Barishal'
     ],
