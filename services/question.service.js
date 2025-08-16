@@ -1,6 +1,8 @@
 // services/question.service.js
 import CreativeQuestion from '../models/creativeQuestion.model.js'; // Ensure correct path
-
+import { createEmbeddingForCreativeQuestions } from './aiRag.service.js';
+import CreativeQuestionEmbedding from '../models/creativeQuestionEmbedding.model.js';
+import { getQuestionFromEmbedding } from './aiRag.service.js';
 // Create a new question
 export const createQuestion = async (questionData) => {
   try {
@@ -28,13 +30,45 @@ export const createQuestion = async (questionData) => {
     }
     // Similar checks for SubTopics if needed
     */
+    const questionForEmbedding = {
+      stem: questionData?.stem,
+      a: questionData?.a,
+      b: questionData?.b,
+      c: questionData?.c,
+      d: questionData?.d,
+      
+      aTopic: questionData?.aTopic,
+      
+      bTopic: questionData?.bTopic,
 
+      cTopic: questionData?.cTopic,
+      cSubTopic: questionData?.cSubTopic,
+      dTopic: questionData?.dTopic,
+      dSubTopic: questionData?.dSubTopic,
+      
+      difficulty: questionData?.difficulty,
+      group: questionData?.group,
+      level: questionData?.level,
+      board: questionData?.board,
+      institution: questionData?.institution,
+      year: questionData?.year,
+      
+      
+    }
     const newQuestion = new CreativeQuestion(questionData);
     const savedQuestion = await newQuestion.save();
+    const embedding = await createEmbeddingForCreativeQuestions(questionForEmbedding);
 
+    const newEmbedding = new CreativeQuestionEmbedding({
+      creativeQuestionId: savedQuestion._id,
+      embedding: embedding
+    })
+
+    await newEmbedding.save();
+    console.log('New Embedding', newEmbedding)
     // Populate subject details for the response
     await savedQuestion.populate('subject', 'englishName banglaName');
-    return { success: true, data: savedQuestion };
+    return { success: true, data: savedQuestion , embedding: embedding };
   } catch (error) {
     console.error("Service Error - Create Question:", error);
     // Mongoose validation errors
@@ -232,7 +266,15 @@ export const updateQuestion = async (id, updateData) => {
 // Delete a question by ID
 export const deleteQuestion = async (id) => {
   try {
+    const question = await CreativeQuestion.findById(id);
+
+   if(!question){
+    return { success: false, message: 'Question not found' };
+   }
     const deletedQuestion = await CreativeQuestion.findByIdAndDelete(id);
+
+    const siblingQuestion = await CreativeQuestion.findOneAndDelete({uniqueKey: question.uniqueKey})
+    console.log(siblingQuestion)
     if (!deletedQuestion) {
       return { success: false, message: 'Question not found' };
     }

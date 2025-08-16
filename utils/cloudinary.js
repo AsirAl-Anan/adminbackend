@@ -46,7 +46,7 @@ async function uploadImage(file, options = {}) {
     const {
       folder = '',
       quality = 'auto:best',
-      format, // <-- Removed default 'auto'
+      format, 
       tags = [],
       transformation = [],
       publicId,

@@ -1,5 +1,5 @@
 import * as subjectService from '../services/subject.service.js'; // Adjust path as needed
-
+import { createEmbeddingsForSubjectsChaptersAndTopics } from '../services/aiRag.service.js';
 // Get all subjects
 export const getSubjects = async (req, res) => {
   try {
@@ -114,13 +114,19 @@ export const getSubjectChapters = async (req, res) => {
 export const addSubject = async (req, res) => {
   try {
     const subjectData = req.body;
+    console.log(subjectData)
     const result = await subjectService.createSubject(subjectData);
     
-    if (result.success) {
+    
+
+    if (result.success === true ) {
+          const embedding = await createEmbeddingsForSubjectsChaptersAndTopics(result.data);
+
       res.status(201).json({
         success: true,
         message: 'Subject created successfully',
-        data: result.data
+        data: result.data,
+        embedding
       });
     } else {
       const statusCode = result.error && result.error.includes('validation') ? 400 : 500;
@@ -241,6 +247,7 @@ export const addChapter = async (req, res) => {
 // Add topic to specific chapter
 export const addTopicToChapter = async (req, res) => {
   try {
+    console.log(req.body)
     const { id, chapterIndex } = req.params;
     const { topic } = req.body;
     const result = await subjectService.addTopicToChapter(id, chapterIndex, topic);
@@ -463,3 +470,55 @@ export const getSubjectsByGroup = async (req, res) => {
     });
   }
 };
+export const removeChapterFromSubject = async (req, res) => { 
+  try {
+    const { id, chapterId } = req.params;
+    const result = await subjectService.removeChapterFromSubject(id, chapterId);
+    
+    if (result.success) {
+      res.status(200).json({
+        success: true,
+        message: 'Chapter removed successfully',
+        data: result.data
+      });
+    } else {
+      const statusCode = result.message === 'Subject not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: result.message || 'Error removing chapter',
+        error: result.error
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error removing chapter',
+      error: error.message
+    });
+  }
+}
+
+export const editTopic = async(req,res) =>{
+  
+  console.log(req.files)
+  const {id,chapterIndex,topicIndex} = req.params
+  const subjectId = id
+
+  const result = await subjectService.editTopic(subjectId, chapterIndex, topicIndex,req.body, req.files)
+
+  if(result.success === true){
+    res.status(200).json({
+    success: true,
+    message: 'Topic edited successfully',
+    data: result.data
+  });
+  }
+  if(result.success === false){
+    res.status(400).json({
+      success: false,
+      message: result.message
+    });
+  }
+  
+
+}

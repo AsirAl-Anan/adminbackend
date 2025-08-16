@@ -13,9 +13,11 @@ import {
   removeTopicFromChapterByName,
   getSubjectsByGroupAndLevel,
   getSubjectsByLevel,
-  getSubjectsByGroup
+  getSubjectsByGroup,
+  removeChapterFromSubject,
+  editTopic
 } from '../controllers/subject.controller.js'; // Adjust path as needed
-
+import { configurations } from '../utils/multer.js';
 const router = express.Router();
 
 // GET routes
@@ -34,10 +36,10 @@ router.post('/:id/chapters', addChapter);
 // PUT routes
 router.put('/:id', editSubject);
 router.put('/:id/chapters/:chapterIndex/topics', addTopicToChapter);
-
+router.put('/:id/chapters/:chapterIndex/topics/:topicIndex',configurations.any, editTopic);
 // DELETE routes
 router.delete('/:id', deleteSubject);
 router.delete('/:id/chapters/:chapterIndex/topics/:topicIndex', removeTopicFromChapter);
 router.delete('/:id/chapters/:chapterIndex/topics', removeTopicFromChapterByName);
-
+router.delete('/:id/chapters/:chapterId',  removeChapterFromSubject);
 export default router;

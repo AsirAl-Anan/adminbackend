@@ -9,7 +9,8 @@ import {
   getQuestionsBySubjectAndLevel,
   getQuestionsByData,
   editQuestion,
-  deleteQuestion
+  deleteQuestion,
+  getQuestionFromEmbeddingController
 } from '../controllers/question.controller.js'; // Adjust path
 import { configurations } from '../utils/multer.js';
 import { uploadImage } from '../utils/cloudinary.js';
@@ -63,11 +64,11 @@ async function stringifyTopics(req, res, next) {
   }
   next();
 }
-router.post('/', configurations.fields, addImage,stringifyTopics ,addQuestion );
+router.post('/', configurations.fields, addImage ,addQuestion );
+router.post('/rag', getQuestionFromEmbeddingController)
 
 // GET /api/questions/:id - Get a single question by ID
 router.get('/:id', getQuestion);
-
 // GET /api/questions/subject/:subjectId - Get questions by subject ID
 router.get('/subject/:subjectId', getQuestionsBySubject);
 

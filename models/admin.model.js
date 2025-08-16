@@ -17,7 +17,12 @@ const adminSchema = new mongoose.Schema({
         trim:true,
         minlength:6,
         select:false
+    },
+    avatar:{
+        type:String,
+        default:""
     }
+
 
 })
 

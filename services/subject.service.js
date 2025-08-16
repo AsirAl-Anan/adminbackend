@@ -1,4 +1,5 @@
 import Subject from '../models/subject.model.js';
+import { uploadImage } from '../utils/cloudinary.js';
 // Get all subjects
 export const getAllSubjects = async () => {
   try {
@@ -121,11 +122,11 @@ export const deleteSubject = async (id) => {
 // Add chapter to subject
 export const addChapterToSubject = async (id, chapterData) => {
   try {
-    const { englishName, banglaName, topics = [] } = chapterData;
-    
+    const { englishName, banglaName ,index,topics} = chapterData;
+    console.log(chapterData)
     const updatedSubject = await Subject.findByIdAndUpdate(
       id,
-      { $push: { chapters: { englishName, banglaName, topics } } },
+      { $push: { chapters: { englishName, banglaName, topics , index } } },
       { new: true, runValidators: true }
     );
     
@@ -153,12 +154,12 @@ export const addTopicToChapter = async (id, chapterIndex, topicData) => {
     if (!subject.chapters[chapterIndex]) {
       return { success: false, message: 'Chapter not found' };
     }
-    
-    const { englishName, banglaName } = topicData;
+    console.log("inside topic data", topicData);
+    const { englishName, banglaName ,topicCode, index, description , formulas, aliases} = topicData;
     
     const updatedSubject = await Subject.findByIdAndUpdate(
       id,
-      { $push: { [`chapters.${chapterIndex}.topics`]: { englishName, banglaName } } },
+      { $push: { [`chapters.${chapterIndex}.topics`]: { englishName, banglaName ,topicCode, index, description, index , formulas, aliases} } },
       { new: true, runValidators: true }
     );
     
@@ -284,5 +285,109 @@ export const getSubjectsByGroup = async (group) => {
     };
   } catch (error) {
     return { success: false, error: error.message };
+  }
+};
+export const removeChapterFromSubject = async (id, chapterId) => {
+  try {
+    // Validate ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      throw new Error('Invalid Subject ID');
+    }
+    if (!mongoose.Types.ObjectId.isValid(chapterId)) {
+      throw new Error('Invalid Chapter ID');
+    }
+
+    const subject = await Subject.findById(id);
+
+    if (!subject) {
+      throw new Error('Subject not found');
+    }
+
+    // Check if chapter exists in the chapters array
+    const chapterIndex = subject.chapters.findIndex(chap => chap._id.toString() === chapterId);
+
+    if (chapterIndex === -1) {
+      throw new Error('Chapter not found in subject');
+    }
+
+    // Remove the chapter by filtering it out
+    subject.chapters.splice(chapterIndex, 1);
+
+    // Save updated subject
+    await subject.save();
+
+    return { message: 'Chapter removed successfully' };
+
+  } catch (error) {
+    throw new Error(error.message || 'Failed to remove chapter');
+  }
+};
+
+export const editTopic = async (subjectId, chapterIndex, topicIndex, editableData, images) => {
+  try {
+    let imagesObj = [];
+    if(images.length > 0) {
+      for(const image of images){
+        const newImage = await uploadImage(image)
+        imagesObj.push({
+          url: newImage?.data?.url,
+          title: image?.fieldname
+        })
+      }
+    }
+    const subject = await Subject.findById(subjectId);
+  if (!subject) {
+    throw new Error('Subject not found');
+  }
+  console.log(editableData)
+  const chapter = subject.chapters[chapterIndex];
+  console.log("editable data", editableData);
+  if (!chapter) {
+    throw new Error('Chapter not found');
+  }
+
+  const topic = chapter.topics[topicIndex];
+  if (!topic) {
+    throw new Error('Topic not found');
+  }
+
+  // Update fields
+  topic.englishName = editableData.englishName ?? topic.englishName;
+  topic.banglaName = editableData.banglaName ?? topic.banglaName;
+  topic.topicCode = editableData.topicCode ?? topic.topicCode;
+  topic.index = editableData.index ?? topic.index;
+  topic.englishDescription = editableData.englishDescription ?? topic.englishDescription;
+  topic.banglaDescription = editableData.banglaDescription ?? topic.banglaDescription;
+
+  // Handle formulas
+  if (editableData.formulas && Array.isArray(editableData.formulas)) {
+    topic.formulas.push(...editableData.formulas); // spread avoids nested arrays
+  }
+
+  // Handle aliases
+  if (editableData.aliases) {
+    if (editableData.aliases.english) {
+      topic.aliases.english.push(...editableData.aliases.english);
+    }
+    if (editableData.aliases.bangla) {
+      topic.aliases.bangla.push(...editableData.aliases.bangla);
+    }
+    if (editableData.aliases.banglish) {
+      topic.aliases.banglish.push(...editableData.aliases.banglish);
+    }
+  }
+  if(imagesObj.length > 0){
+    subject.chapters[chapterIndex].topics[topicIndex].images.push(...imagesObj);
+  }
+  console.log("new subject", subject.chapters[chapterIndex].topics);
+  await subject.save();
+  return {
+    success: true,
+    message: 'Topic edited successfully',
+    data: subject
+  };
+  } catch (error) {
+    
+     return { success: false, error: error.message };
   }
 };

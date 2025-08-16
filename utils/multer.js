@@ -98,7 +98,8 @@ const configurations = {
     { name: 'dAnswerImage', maxCount: 1 },
 
     
-    { name: 'documents', maxCount: 3 }
+    { name: 'documents', maxCount: 8 },
+   { name: 'images', maxCount: 5 }
   ]),
   
   // Any files

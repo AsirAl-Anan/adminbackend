@@ -10,15 +10,17 @@ import answerRouter from "./routes/answer.routes.js";
 import aiRouter from "./routes/ai.routes.js";
 import subjectRouter from "./routes/subject.routes.js"; 
 import { connectDb } from "./config/db.config.js";
+import { testing } from "./langchain/geminiAi.js";
 import dotenv from 'dotenv';
 dotenv.config();
-
+import splitText from "./langchain/index.js";
 import messageRouter from "./routes/message.routes.js";
+import { searchSimilarChunks } from "./langchain/index.js";
 connectDb()
 const app = express();
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({limit:'10mb'}));
+app.use(express.urlencoded({ extended: true , limit:'10mb'}));
 app.use(cookieParser());
 console.log("Client URL:", process.env.CLIENT_URL);
 app.use(
@@ -61,4 +63,9 @@ app.use("/api/v1/qb", questionRouter);
 app.use("/api/v1/ai", aiRouter);
 app.use("/api/v1/subject", subjectRouter); // Use the subject router
 
+app.get('/langchain', testing)
+app.post('/langchain',async (req,res)=>{
+   const r= await searchSimilarChunks(req.body.query)
+    res.send(r)
+} )
 export default app;

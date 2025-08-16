@@ -3,6 +3,7 @@
 // The service layer handles the updated logic.
 import * as questionService from '../services/question.service.js'; // Adjust path if necessary
 import { uploadImage } from '../utils/cloudinary.js';
+import { getQuestionFromEmbedding } from '../services/aiRag.service.js';
 // Create a new question
 export const addQuestion = async (req, res) => {
   try {
@@ -61,7 +62,29 @@ export const getQuestion = async (req, res) => {
     });
   }
 };
+export const getQuestionFromEmbeddingController = async (req, res) => {
+  try {
+      const {question} = req.body;
+      console.log(question)
+      const result = await getQuestionFromEmbedding(question);
+      console.log(result)
+      if (result.success) { 
+          res.status(200).json({
+              success: true,
+              data: result.data
+          }); 
 
+      } else {
+          res.status(404).json({
+              success: false,
+              message: result.message
+          });
+      }
+  } catch (error) {
+      console.error("Controller Error - Get Question:", error);
+
+  }
+}
 // Get questions by subject ID
 export const getQuestionsBySubject = async (req, res) => {
   try {

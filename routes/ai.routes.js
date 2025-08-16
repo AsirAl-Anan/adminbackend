@@ -6,6 +6,7 @@ import {
   extractAnswersFromImages 
 } from "../services/aiService.js";
 import { validateImageUpload, cleanupFiles } from "../utils/file.utils.js";
+import { createEmbedingsForSubjectsChaptersAndTopics, getSimilarDocsBySubjectChapterAndTopic , } from "../controllers/rag.controller.js";
 
 const router = Router();
 
@@ -131,5 +132,6 @@ router.post('/extract-cq-answers',
   handleMulterError, 
   extractAnswers
 );
-
+router.post('/rag/ingestSubjectEmbeddings', createEmbedingsForSubjectsChaptersAndTopics)
+router.post('/rag/getSubjectQuery', getSimilarDocsBySubjectChapterAndTopic)
 export default router;
