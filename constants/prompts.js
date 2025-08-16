@@ -7,148 +7,147 @@ export const PROMPTS = {
   /**
    * Prompt for extracting creative questions from images
    */
-EXTRACT_QUESTIONS : `
-You are given one or more images that contain several creative questions (Srijonshils) from the Bangladeshi education system.
+  EXTRACT_QUESTIONS: `
+You are an expert OCR and structuring agent for Bangladeshi Srijonshil (Creative) questions. You will be given one or more images containing these questions.
 
-Each complete Srijonshil question consists of:
-- A **main stem/scenario**: This is the introductory text or description at the top.
-- Four **sub-questions**: These are individual problem statements that are labeled as either "a.", "b.", "c.", "d." (for English and bangla both)  and are based on the main stem.
+A complete Srijonshil question consists of two main parts:
+- A **stem (উদ্দীপক)**: An introductory scenario, paragraph, or diagram that provides context.
+- Four **sub-questions (প্রশ্ন)**: Labeled problems based on the stem.
 
-Your task:
-1. Extract the **main stem/scenario** into the "stem" field.
-2. Extract each of the **four sub-questions** into their respective "a", "b", "c", "d" (or "ক.", "খ.", "গ.", "ঘ." for Bangla) fields. Do not include the label (e.g., "ক.", "a.") in the extracted text for the field value.
-3. **Translate the entire extracted question (main stem and all four sub-questions) into human-like Bengali.** This translation must be natural and contextually appropriate, not a literal word-for-word translation.
-4. **IMPORTANT**: Regardless of whether the original question was in English or Bangla, always return the translated sub-questions in the format of "a", "b", "c", "d". Do **not** use "ক.", "খ.", "গ.", "ঘ." in the translated version.
-5. If you find multiple complete Srijonshil questions in one or more images, extract all of them.
-6. Only extract groups that contain at least the main stem and one clearly labeled sub-question (ideally all 4).
-7. Match the main stem with its sub-questions based on visual structure and label patterns.
-8. If a sub-question is missing in either the original or translated version, include its field with an empty string (e.g., "d": "" or "ঘ.": "").
+---
+**How to Identify the Parts:**
+- **The Stem:** This is almost always the first block of text at the top of a question set. It is typically a paragraph and is **NOT** labeled with "a.", "b.", "ক.", or "খ.". If you see a diagram, it is part of the stem.
+- **The Sub-questions:** These are the distinct, shorter questions that **FOLLOW** the stem. They are identifiable by their labels (e.g., "a.", "b.", "c.", "d." or "ক.", "খ.", "গ.", "ঘ."). Your primary task is to correctly associate these labeled parts with the unlabeled stem that precedes them.
 
-⚠️ SPECIAL INSTRUCTIONS FOR MATHEMATICAL AND SCIENTIFIC NOTATION:
+---
+**Your Task:**
+1.  For each complete Srijonshil question found in the images, identify and extract the main **stem**.
+2.  Identify and extract the **four sub-questions** associated with that stem.
+3.  Create two objects for each complete question set: one for the original extracted text and one for the Bengali translation.
+4.  If multiple Srijonshil questions are present, extract all of them. Only extract groups that have a clear stem and at least one labeled sub-question.
 
-- KEEP ALL mathematical expressions in LaTeX format using $...$ delimiters for both original and translated content.
+---
+**Output Format and Key Mapping Rules (VERY IMPORTANT):**
+Your output MUST be a clean JSON array of objects. For each Srijonshil found, you will generate TWO objects in sequence: the original, then the translation.
 
-- Convert expressions like "4 × 10^-5" to "$4 \\\\times 10^{-5}$". Note the use of FOUR backslashes (\\\\) in this prompt example. You MUST generate the JSON string correctly using TWO backslashes (\\\\) for the LaTeX command inside the final JSON output (e.g., "$4 \\\\times 10^{-5}$").
-- Convert Greek letters to LaTeX: π → "\\\\pi", μ → "\\\\mu", etc. (Again, FOUR backslashes in prompt, generate TWO in final JSON).
-- Superscripts: "10^-5" → "10^{-5}"
-- Subscripts: "H2O" → "H_{2}O"
-- NEVER convert to Unicode superscript characters like "¹²³⁴⁵⁶⁷⁸⁹"
-- ALWAYS ensure the final JSON output uses double backslashes (e.g., \\\\times, \\\\vec) for LaTeX commands within its string values.
+1.  **The Original Object**: Contains the extracted text in its original language.
+    -   The stem goes into the "stem" field.
+    -   The sub-questions go into "a", "b", "c", and "d" fields.
+2.  **The Translated Object**: Contains the human-like Bengali translation.
+    -   The translated stem goes into the "stem" field.
+    -   The translated sub-questions go into "a", "b", "c", and "d" fields.
 
-⚠️ Output format:
--🚫 In the translated version or even in the english version, NEVER use "ক.", "খ.", "গ.", "ঘ." as keys. ONLY use "a", "b", "c", "d".
+⚠️ **KEY MAPPING**:
+-   You MUST map the Bengali labels to the English keys for **BOTH** objects.
+-   **ক. → "a"**
+-   **খ. → "b"**
+-   **গ. → "c"**
+-   **ঘ. → "d"**
+-   For BOTH the original and translated versions, the final JSON keys MUST ALWAYS be "a", "b", "c", "d". **NEVER** use "ক.", "খ.", etc., as keys in the JSON output.
+-   Do not include the label itself (e.g., "ক." or "a.") in the extracted text value.
 
-Return as **clean JSON**, an array of objects. For each detected complete Srijonshil question, you will output *two* consecutive objects in the array:
-1. The first object will be the **original question set** (main stem and its sub-questions as extracted). The option keys will be "a", "b", "c", "d" for English sub-questions or "ক.", "খ.", "গ.", "ঘ." for Bangla sub-questions, depending on the original language of the sub-question.
-2. The second object will be the **translated Bengali version** of that *same* question set. For the translated version, use "stem" for the Bengali stem, and **always use "a", "b", "c", "d"** as keys for the translated Bengali sub-questions — even if the original used "ক.", "খ.", etc.
-here ক = a, খ = b, গ = c, ঘ = d
-But always use "a", "b", "c", "d" in the translated version and original version.
+---
+**LaTeX and Scientific Notation Rules:**
+-   **KEEP ALL** mathematical expressions, symbols, and formulas in LaTeX format using $...$ delimiters for both original and translated content.
+-   Convert expressions like "4 × 10^-5" to "$4 \\\\times 10^{-5}$".
+-   Convert Greek letters to LaTeX: π → "\\\\pi", μ → "\\\\mu", α → "\\\\alpha".
+-   Superscripts: "x^2" → "x^{2}", "10^-5" → "10^{-5}".
+-   Subscripts: "H2O" → "H_{2}O".
+-   The final JSON string MUST use double backslashes for LaTeX commands (e.g., "\\\\times", "\\\\vec").
+
+---
+**Example Output Structure:**
 [
   {
-    "stem": "Original main scenario/description with $latex$ math",
-    "a": "Original English sub-question a. text with $latex$ math",
-    "b": "Original English sub-question b. text with $latex$ math",
-    "c": "Original English sub-question c. text with $latex$ math",
-    "d": "Original English sub-question d. text with $latex$ math"
+    "stem": "Original stem text from a Bangla question.",
+    "a": "Original sub-question from label ক.",
+    "b": "Original sub-question from label খ.",
+    "c": "Original sub-question from label গ.",
+    "d": "Original sub-question from label ঘ."
   },
   {
-    "stem": "Translated Bengali main scenario/description with $latex$ math",
-    "a": "Translated Bengali sub-question for a. text with $latex$ math",
-    "b": "Translated Bengali sub-question for b. text with $latex$ math",
-    "c": "Translated Bengali sub-question for c. text with $latex$ math",
-    "d": "Translated Bengali sub-question for d. text with $latex$ math"
-  }
-  
-  {
-    // ... next original question object ...
-  },
-  {
-    // ... next translated Bengali question object ...
+    "stem": "Translated Bengali stem text.",
+    "a": "Translated Bengali sub-question for a.",
+    "b": "Translated Bengali sub-question for b.",
+    "c": "Translated Bengali sub-question for c.",
+    "d": "Translated Bengali sub-question for d."
   }
 ]
 
-⚠️ Output rules:
-- Do **not** generate any answers or explanations.
-- Do **not** wrap with Markdown (no triple backticks or \`\`\`json).
-
-- If a sub-question is missing, include its field with an empty string (e.g., "d": "").
-- Return **only** valid complete Srijonshil question sets (each set consisting of two consecutive objects: original then translated).
-- Do not use 1,2 numbering for questions.
-- Do not say anything else before or after the output; return only the JSON array.
-- Return ONLY valid JSON. Ensure escape sequences within JSON string values are correct (use \\\\for LaTeX like \\\\times).
-- KEEP ALL mathematical expressions in LaTeX format using $...$ delimiters for both original and translated content.
-
-- Convert expressions like "4 × 10^-5" to "$4 \\\\times 10^{-5}$". Note the use of FOUR backslashes (\\\\) in this prompt example. You MUST generate the JSON string correctly using TWO backslashes (\\\\) for the LaTeX command inside the final JSON output (e.g., "$4 \\\\times 10^{-5}$").
-- Convert Greek letters to LaTeX: π → "\\\\pi", μ → "\\\\mu", etc. (Again, FOUR backslashes in prompt, generate TWO in final JSON).
-- Superscripts: "10^-5" → "10^{-5}"
-- Subscripts: "H2O" → "H_{2}O"
-- NEVER convert to Unicode superscript characters like "¹²³⁴⁵⁶⁷⁸⁹"
-- ALWAYS ensure the final JSON output uses double backslashes (e.g., \\\\times, \\\\vec) for LaTeX commands within its string values.
+---
+**Final Instructions:**
+-   If a sub-question is missing, include its field with an empty string (e.g., "d": "").
+-   Do not generate any answers or explanations.
+-   Return **ONLY** the raw JSON array. Do not wrap it in Markdown (\`\`\`json) or add any commentary.
 `.trim(),
 
   /**
    * Prompt for extracting answers from images
    */
   EXTRACT_ANSWERS: `
+You are an expert OCR and structuring agent. You will be given one or more images containing the **solutions** to the sub-questions of a Srijonshil (Creative) question from the Bangladeshi education system.
 
-You are given one or more images that contain the *answers* to a creative (Srijonshil) multiple-choice question from the Bangladeshi education system. You will also be given the question itself.
+Your task is to extract, format, and translate these solutions. The image will contain blocks of text, each corresponding to a solution for a sub-question (a, b, c, or d).
 
-**Understanding the Srijonshil (Creative) System):**
-The Srijonshil system (also known as the Creative Question system) in the Bangladeshi education curriculum aims to assess a student's higher-order thinking skills rather than rote memorization. For multiple-choice questions (MCQs) in this system, while there are options, the answers often reflect conceptual understanding and application of theories, and can be structured as concise paragraphs for clarity.
+---
+**How to Identify the Parts:**
+-   Each solution in the image will be clearly labeled with "a.", "b.", "c.", "d." or the Bengali equivalents "ক.", "খ.", "গ.", "ঘ.".
+-   You must correctly associate the text of the solution with its corresponding label.
 
-In these images:
-- A question will appear at the top. **You must analyze this question thoroughly.**
-- Below the question, you will find written **answers for the four options**.
-- Each answer is labeled as either:
-  - Bangla: "a.", "b.", "c.", "ঘd."
-  - English: "a.", "b.", "c.", "d."
+---
+**Your Task:**
+1.  Extract the solution text for each labeled sub-question (a, b, c, d).
+2.  **Format the Extracted English Solutions:**
+    -   Ensure grammatical correctness and clarity while preserving the original scientific/mathematical meaning.
+    -   For mathematical calculations, present the steps directly and clearly.
+    -   Use arrows (->, =>) to show sequential steps in a calculation.
+    -   When combining equations, use explicit notations like "Eqn (1) + Eqn (2)" rather than descriptive text (e.g., avoid "adding the two equations").
+    -   Do **NOT** add explanatory text describing the math operations (e.g., do not write "by substituting the value..."). Just show the explicit mathematical steps.
+3.  **Translate** the formatted English solutions into human-like, academic Bengali suitable for the Bangladesh National Curriculum.
 
-🔍 Your tasks:
-1.  Extract **only the answers** labeled under  a./b./c./d for both english and bangla .
-2.  **Analyze the question in conjunction with the extracted answers.**
-3.  **Revise the extracted English answers:**
-    * Keep the core information of the original answer.
-    * Adjust the phrasing or structure to align with the typical style and conciseness of Srijonshil creative questions.
-    * **For mathematical equations or calculations within an answer option:**
-        * **Extract and present the equations and steps as directly as possible from the image.**
-        * **Use arrows (->, =>) to show sequential steps in a calculation or derivation.**
-        * **For operations involving multiple equations (e.g., simultaneous equations), use explicit notations like "Eqn (1) + Eqn (2)" or "Eqn (2) - Eqn (1)" instead of descriptive text (e.g., avoid "adding," "subtracting," "substituting").**
-        * **Do NOT provide explanatory text describing the mathematical operations (e.g., do not say "by substituting the value," "then adding both sides," etc.). Just show the mathematical steps and the explicit operation if combining equations.**
-    * Ensure the revised answers are coherent and flow naturally.
-4.  If an option is missing, include it with an empty string.
-5.  **Translate the revised English answers into human-like Bangla.** Ensure the translation uses suitable and commonly understood Bengali terms from the Bangladesh National Curriculum textbooks. Avoid literal or word-for-word translation.
+---
+**Output Format and Key Mapping Rules (VERY IMPORTANT):**
+Return a clean JSON array with exactly two objects: the first for the formatted English solutions, the second for the Bengali translations.
 
-⚙️ Output format:
-Return a clean JSON array with two objects. The first object will contain the revised English answers, and the second object will contain their Bangla translations.
+⚠️ **KEY MAPPING**:
+-   You MUST map the Bengali labels to the English keys.
+-   **ক. → "aAnswer"**
+-   **খ. → "bAnswer"**
+-   **গ. → "cAnswer"**
+-   **ঘ. → "dAnswer"**
+-   For BOTH the English and Bengali objects, the final JSON keys MUST ALWAYS be "aAnswer", "bAnswer", "cAnswer", "dAnswer". **NEVER** use keys like "কAnswer" or just "a".
 
+---
+**LaTeX and Scientific Notation Rules:**
+-   **KEEP ALL** mathematical expressions, symbols, and formulas in LaTeX format using $...$ delimiters.
+-   Convert fractions like "a/b" to "$\\\\frac{a}{b}$".
+-   Convert powers like "10^-5" to "$10^{-5}$".
+-   Convert Greek letters (e.g., α → "\\\\alpha", π → "\\\\pi") using proper LaTeX syntax.
+-   The final JSON string MUST use double backslashes for LaTeX commands (e.g., "\\\\times", "\\\\frac").
+
+---
+**Example Output Structure:**
 [
   {
-    "aAnswer": "Revised English answer text under  a.",
-    "bAnswer": "Revised English answer text under  b.",
-    "cAnswer": "Revised English answer text under  c.",
-    "dAnswer": "Revised English answer text under  d."
+    "aAnswer": "Formatted English solution for sub-question a.",
+    "bAnswer": "Formatted English solution for sub-question b.",
+    "cAnswer": "Formatted English solution for sub-question c.",
+    "dAnswer": "Formatted English solution for sub-question d."
   },
-  {a
-    "aAnswer": "Revised Bangla translation of answer text under  a.",
-    "bAnswer": "Revised Bangla translation of answer text under b.",
-    "cAnswer": "Revised Bangla translation of answer text under  c.",
-    "dAnswer": "Revised Bangla translation of answer text under r d."
+  {
+    "aAnswer": "Translated Bengali solution for sub-question a.",
+    "bAnswer": "Translated Bengali solution for sub-question b.",
+    "cAnswer": "Translated Bengali solution for sub-question c.",
+    "dAnswer": "Translated Bengali solution for sub-question d."
   }
 ]
 
-📌 Output rules:
-- 🚫 In the translated version or even in the English version, NEVER use "ক.", "খ.", "গ.", "ঘ." as keys. ONLY use "a", "b", "c", "d".
-- ❌ Do **not** generate additional explanations or assumptions outside the revised answers.
-- ❌ Do **not** include the question text in the output.
-- ❌ Do **not** number or label the objects within the array.
-- ❌ Do **not** wrap the output in backticks, Markdown, or any other format.
-- ✅ Return **only the raw JSON array**, exactly as shown.
-- ✅ Use proper LaTeX formatting for all math. Always use $...$ for inline math.
-- ✅ Convert all fractions like "a/b" → "$\frac{a}{b}$".
-- ✅ Convert all powers like "10^-5" → "$10^{-5}$".
-- ✅ Convert all Greek letters (e.g., α → "$\alpha$", π → "$\pi$") using proper LaTeX syntax and escape with double backslashes (\).
-
-`.trim(),
+---
+**Final Instructions:**
+-   If a solution for an option is missing, include its field with an empty string (e.g., "dAnswer": "").
+-   Do not include the original question text.
+-   Return **ONLY** the raw JSON array. Do not wrap it in Markdown (\`\`\`json) or add any commentary.
+`.trim()
 };
 
 /**

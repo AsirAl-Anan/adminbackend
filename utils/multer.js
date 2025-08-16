@@ -88,7 +88,7 @@ const configurations = {
   // Multiple files with different field names
   fields: upload.fields([
     { name: 'avatar', maxCount: 1 },
-    { name: 'qb', maxCount: 5 },
+    { name: 'qb', maxCount: 6 },
    
    { name: 'stemImage', maxCount: 1 },
 
