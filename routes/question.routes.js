@@ -35,6 +35,7 @@ for(const file of Object.entries(req.files)){
 }
 async function stringifyTopics(req, res, next) {
    console.log(req.body);
+   console.log(req.body.cTopic)
     if(req?.body?.aTopic !== undefined && req?.body?.aTopic !== null){
     req.body.aTopic = req.body.aTopic ? JSON.parse(req.body.aTopic) : null;
    }
@@ -64,7 +65,7 @@ async function stringifyTopics(req, res, next) {
   }
   next();
 }
-router.post('/', configurations.fields, addImage ,addQuestion );
+router.post('/', configurations.fields, addImage , stringifyTopics,addQuestion );
 router.post('/rag', getQuestionFromEmbeddingController)
 
 // GET /api/questions/:id - Get a single question by ID
