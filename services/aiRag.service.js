@@ -7,6 +7,8 @@ import { RunnableSequence , RunnablePassthrough} from "@langchain/core/runnables
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import {PromptTemplate} from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
+import {createEmbedingsForSubjectsChaptersAndTopics} from "../controllers/ai.controller.js";
+
 export const findSimilarDocsBySubjectChapterAndTopic = async (query, topK = 5, includeScores = false) => {
   const client = new MongoClient(process.env.MONGODB_URI || "");
   try {
@@ -55,6 +57,7 @@ export const findSimilarDocsBySubjectChapterAndTopic = async (query, topK = 5, i
 export const findSimilarDocsWithParsedContent = async (query, topK = 5) => {
   const client = new MongoClient(process.env.MONGODB_URI || "");
   try {
+    console.log("Query received:", query);
     const collection = client
       .db('test')
       .collection('subjectembeddings');
@@ -225,14 +228,21 @@ export const createEmbeddingForCreativeQuestions =(question) =>{
   const questionStr = JSON.stringify(question);
   console.log(questionStr)
   return embeddings.embedQuery(questionStr);
-
-
+}
+export const createEmbeddingsForSegment = async (segment) => {
+  try {
+    const segmentStr = JSON.stringify(segment);
+    const embedding = await embeddings.embedQuery(segmentStr);
+    return embedding
+  } catch (error) {
+    return error
+  }
 }
 export const getQuestionFromEmbedding  = async (question) =>{
 
   try {
     const client = new MongoClient(process.env.MONGODB_URI || "");
-    const collection = client.db('test').collection('creativequestionembeddings')
+    const collection = client.db('test').collection('questionembeddings')
     const questionStr = JSON.stringify(question);
     const embedding = await embeddings.embedQuery(questionStr);
   
@@ -258,4 +268,9 @@ export const getQuestionFromEmbedding  = async (question) =>{
     throw error;
     
   }
+}
+
+export const createEmbeddings = async (data)=> {
+const newEmbeddings = await embeddings.embed( data)
+return newEmbeddings
 }

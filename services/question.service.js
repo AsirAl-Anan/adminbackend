@@ -1,97 +1,111 @@
 // services/question.service.js
-import CreativeQuestion from '../models/creativeQuestion.model.js'; // Ensure correct path
+import CreativeQuestion from '../models/creativeQuestion.model.js';
+import QuestionEmbedding from '../models/question.embedding.model.js';
 import { createEmbeddingForCreativeQuestions } from './aiRag.service.js';
-import CreativeQuestionEmbedding from '../models/creativeQuestionEmbedding.model.js';
-import { getQuestionFromEmbedding } from './aiRag.service.js';
-// Create a new question
-export const createQuestion = async (questionData) => {
-  try {
-    // Optional: Validate that subject, chapter, and topics exist and match
-    // This requires fetching the Subject document and checking the chapter/topics
-    // against the provided IDs. Omitted for brevity but recommended for data integrity.
-    /*
-    const subjectDoc = await Subject.findById(questionData.subject);
-    if (!subjectDoc) {
-        return { success: false, message: 'Subject not found.' };
-    }
-    const chapterDoc = subjectDoc.chapters.id(questionData.chapter.chapterId);
-    if (!chapterDoc) {
-         return { success: false, message: 'Chapter not found in the specified subject.' };
-    }
-    const cTopicDoc = chapterDoc.topics.id(questionData.cTopic.topicId);
-    if (!cTopicDoc) {
-         return { success: false, message: 'cTopic not found in the specified chapter.' };
-    }
-    if(questionData.d && questionData.dTopic.topicId) {
-        const dTopicDoc = chapterDoc.topics.id(questionData.dTopic.topicId);
-        if (!dTopicDoc) {
-             return { success: false, message: 'dTopic not found in the specified chapter.' };
-        }
-    }
-    // Similar checks for SubTopics if needed
-    */
-    const questionForEmbedding = {
-      stem: questionData?.stem,
-      a: questionData?.a,
-      b: questionData?.b,
-      c: questionData?.c,
-      d: questionData?.d,
-      
-      aTopic: questionData?.aTopic,
-      
-      bTopic: questionData?.bTopic,
+// To use validation, uncomment these imports
+ import Subject from '../models/subject.model.js';
+ import Chapter from '../models/chapter.model.js';
+ import Topic from '../models/topic.model.js';
 
-      cTopic: questionData?.cTopic,
-      cSubTopic: questionData?.cSubTopic,
-      dTopic: questionData?.dTopic,
-      dSubTopic: questionData?.dSubTopic,
-      
-      difficulty: questionData?.difficulty,
-      group: questionData?.group,
-      level: questionData?.level,
-      board: questionData?.board,
-      institution: questionData?.institution,
-      year: questionData?.year,
-      
-      
-    }
-    const newQuestion = new CreativeQuestion(questionData);
-    const savedQuestion = await newQuestion.save();
+
+// Helper to transform new schema data into the flat structure expected by the embedding service
+const buildEmbeddingObject = (questionData) => {
+  const embeddingData = {
+    stem: questionData.stem,
+    difficulty: questionData.difficulty,
+    group: questionData.group,
+    level: questionData.level,
+    board: questionData.board,
+    institution: questionData.institution ? questionData.institution.name : undefined,
+    year: questionData.year,
+    a: questionData.a,
+    b: questionData.b,
+    c: questionData.c,
+    cTopic: questionData.cTopic ? {
+      englishName: questionData.cTopic.englishName,
+      banglaName: questionData.cTopic.banglaName,
+    } : undefined,
+  };
+
+  if (questionData.d) {
+    embeddingData.d = questionData.d;
+  }
+  if (questionData.dTopic) {
+    embeddingData.dTopic = {
+      englishName: questionData.dTopic.englishName,
+      banglaName: questionData.dTopic.banglaName,
+    };
+  }
+
+  Object.keys(embeddingData).forEach(key => embeddingData[key] === undefined && delete embeddingData[key]);
+  
+  return embeddingData;
+};
+
+
+// Create a new question
+// Create a new question (UPDATED with Transaction)
+export const createQuestion = async (questionData) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // --- (Your existing parsing logic) ---
+    ['institution', 'chapter', 'cTopic', 'dTopic'].forEach(field => {
+      if (questionData[field] && typeof questionData[field] === 'string') {
+        try { questionData[field] = JSON.parse(questionData[field]); }
+        catch (e) { console.error(`Failed to parse ${field}:`, questionData[field]); }
+      }
+    });
+    if (questionData.cAnswerImage && questionData.cAnswerImage.length > 0) { questionData.cAnswerImage = questionData.cAnswerImage[0]; } else { delete questionData.cAnswerImage; }
+    if (questionData.dAnswerImage && questionData.dAnswerImage.length > 0) { questionData.dAnswerImage = questionData.dAnswerImage[0]; } else { delete questionData.dAnswerImage; }
+    if (questionData.stemImage && questionData.stemImage.length > 0) { questionData.stemImage = questionData.stemImage[0]; } else { delete questionData.stemImage; }
+    
+    // 1. Create the new question within the transaction
+    // Using create() with a session is a concise way to handle this
+    const newQuestionArray = await CreativeQuestion.create([questionData], { session });
+    const savedQuestion = newQuestionArray[0];
+
+    // 2. Generate the embedding
+    const questionForEmbedding = buildEmbeddingObject(savedQuestion.toObject());
     const embedding = await createEmbeddingForCreativeQuestions(questionForEmbedding);
 
-    const newEmbedding = new CreativeQuestionEmbedding({
+    // 3. Create and save the new embedding within the transaction
+    const newEmbedding = new QuestionEmbedding({
       creativeQuestionId: savedQuestion._id,
       embedding: embedding
-    })
-
-    await newEmbedding.save();
-    console.log('New Embedding', newEmbedding)
-    // Populate subject details for the response
+    });
+    await newEmbedding.save({ session });
+    
+    // 4. If all operations succeed, commit the transaction
+    await session.commitTransaction();
+    
+    // Populate after commit for the final response
     await savedQuestion.populate('subject', 'englishName banglaName');
-    return { success: true, data: savedQuestion , embedding: embedding };
+    
+    return { success: true, data: savedQuestion, embedding: embedding };
+
   } catch (error) {
+    // If any step fails, abort the entire transaction
+    await session.abortTransaction();
+    
     console.error("Service Error - Create Question:", error);
-    // Mongoose validation errors
     if (error.name === 'ValidationError') {
-      return {
-        success: false,
-        message: 'Validation Error',
-        error: error.message,
-        details: Object.values(error.errors).map(e => e.message)
-      };
-    }
-    // Custom errors from pre hooks
-    if (error.message.includes('Topic') || error.message.includes('Answer') || error.message.includes('SubTopic')) {
-      return { success: false, message: 'Validation Error', error: error.message };
+      return { success: false, message: 'Validation Error', error: error.message, details: Object.values(error.errors).map(e => e.message) };
     }
     return { success: false, message: 'Error creating question', error: error.message };
+  } finally {
+    // Always end the session
+    session.endSession();
   }
 };
 
 // Get a single question by ID
 export const getQuestionById = async (id) => {
   try {
-    const question = await CreativeQuestion.findById(id).populate('subject', 'englishName banglaName');
+    const question = await CreativeQuestion.findById(id)
+      .populate('subject', 'englishName banglaName');
+      
     if (!question) {
       return { success: false, message: 'Question not found' };
     }
@@ -105,7 +119,9 @@ export const getQuestionById = async (id) => {
 // Get questions by subject ID
 export const getQuestionsBySubject = async (subjectId) => {
   try {
-    const questions = await CreativeQuestion.find({ subject: subjectId }).populate('subject', 'englishName banglaName');
+    const questions = await CreativeQuestion.find({ subject: subjectId })
+      .populate('subject', 'englishName banglaName');
+      
     return { success: true, data: questions, count: questions.length };
   } catch (error) {
     console.error("Service Error - Get Questions By Subject:", error);
@@ -113,19 +129,16 @@ export const getQuestionsBySubject = async (subjectId) => {
   }
 };
 
-// Get questions by subject ID, level, and optionally group (default group if not provided)
-// Based on the frontend flow, group & level are selected first, then subject.
-// This function allows filtering by subject (already selected) and level.
-// Group is inherently tied to the subject via the Subject model.
+// Get questions by subject ID, level, and optionally group
 export const getQuestionsBySubjectAndLevel = async (subjectId, level, group = null) => {
   try {
     const filter = { subject: subjectId, level: level };
-    // If group is explicitly provided (though subject implies group), filter by it
     if (group) {
       filter.group = group;
     }
-    const questions = await CreativeQuestion.find(filter).populate('subject', 'englishName banglaName');
-    console.log("Questions fetched by subject and level:", questions);
+    const questions = await CreativeQuestion.find(filter)
+      .populate('subject', 'englishName banglaName');
+
     return { success: true, data: questions, count: questions.length };
   } catch (error) {
     console.error("Service Error - Get Questions By Subject and Level:", error);
@@ -133,97 +146,46 @@ export const getQuestionsBySubjectAndLevel = async (subjectId, level, group = nu
   }
 };
 
-// Get questions by various filters (topic, board, year, etc.)
+// Get questions by various filters
 export const getQuestionsByFilters = async (filters) => {
   try {
-    // Build dynamic filter object
     const query = {};
-    // Handle simple string/number/enum filters
-    const simpleFilters = ['board', 'year', 'difficulty', 'level', 'group', 'version', 'institution'];
+    const simpleFilters = ['board', 'year', 'difficulty', 'level', 'group', 'version', 'subject'];
     simpleFilters.forEach(key => {
       if (filters[key] !== undefined && filters[key] !== null && filters[key] !== '') {
         query[key] = filters[key];
       }
     });
-
-    // Handle subject filter
-    if (filters.subject) {
-      query.subject = filters.subject;
+    
+    if (filters.institution) {
+        query['institution.name'] = new RegExp(filters.institution, 'i');
     }
 
-    // Handle chapter filter (search by chapterId)
     if (filters.chapterId) {
       query['chapter.chapterId'] = filters.chapterId;
     }
 
-    // Handle topic filters (search by topicId within cTopic, dTopic, cSubTopic, dSubTopic)
+    const topicConditions = [];
     if (filters.topicId) {
-      query.$or = [
-        { 'cTopic.topicId': filters.topicId },
-        { 'dTopic.topicId': filters.topicId },
-        { 'cSubTopic.topicId': filters.topicId }, // Add cSubTopic
-        { 'dSubTopic.topicId': filters.topicId }  // Add dSubTopic
-      ];
+      topicConditions.push({ 'cTopic.topicId': filters.topicId });
+      topicConditions.push({ 'dTopic.topicId': filters.topicId });
+    } else if (filters.topicName) {
+      const topicNameRegex = new RegExp(filters.topicName, 'i');
+      topicConditions.push({ 'cTopic.englishName': topicNameRegex });
+      topicConditions.push({ 'cTopic.banglaName': topicNameRegex });
+      topicConditions.push({ 'dTopic.englishName': topicNameRegex });
+      topicConditions.push({ 'dTopic.banglaName': topicNameRegex });
     }
 
-    // Handle search by topic name (English or Bangla) - less precise than ID
-    if (filters.topicName) {
-      query.$or = [
-        { 'cTopic.englishName': new RegExp(filters.topicName, 'i') },
-        { 'cTopic.banglaName': new RegExp(filters.topicName, 'i') },
-        { 'dTopic.englishName': new RegExp(filters.topicName, 'i') },
-        { 'dTopic.banglaName': new RegExp(filters.topicName, 'i') },
-        { 'cSubTopic.englishName': new RegExp(filters.topicName, 'i') }, // Add cSubTopic
-        { 'cSubTopic.banglaName': new RegExp(filters.topicName, 'i') },   // Add cSubTopic
-        { 'dSubTopic.englishName': new RegExp(filters.topicName, 'i') },  // Add dSubTopic
-        { 'dSubTopic.banglaName': new RegExp(filters.topicName, 'i') }    // Add dSubTopic
-      ];
+    if (topicConditions.length > 0) {
+      query.$or = topicConditions;
     }
 
-    // Handle year range if needed (example)
-    // if (filters.yearFrom && filters.yearTo) {
-    //     query.year = { $gte: filters.yearFrom, $lte: filters.yearTo };
-    // } else if (filters.yearFrom) {
-    //     query.year = { $gte: filters.yearFrom };
-    // } else if (filters.yearTo) {
-    //     query.year = { $lte: filters.yearTo };
-    // }
-
-    // Handle filtering by aCommon or bCommon if needed (more complex)
-    // Example: Find questions where 'a' was used in Dhaka board in 2020
-    // This would require filters like aBoard=Dhaka&aYear=2020
-    if (filters.aBoard && filters.aYear) {
-        query['aCommon'] = {
-            $elemMatch: {
-                board: filters.aBoard,
-                year: parseInt(filters.aYear, 10) // Ensure year is a number
-            }
-        };
-    } else if (filters.aBoard) {
-         query['aCommon.board'] = filters.aBoard;
-    } else if (filters.aYear) {
-         query['aCommon.year'] = parseInt(filters.aYear, 10); // Ensure year is a number
-    }
-
-    if (filters.bBoard && filters.bYear) {
-        query['bCommon'] = {
-            $elemMatch: {
-                board: filters.bBoard,
-                year: parseInt(filters.bYear, 10) // Ensure year is a number
-            }
-        };
-    } else if (filters.bBoard) {
-         query['bCommon.board'] = filters.bBoard;
-    } else if (filters.bYear) {
-         query['bCommon.year'] = parseInt(filters.bYear, 10); // Ensure year is a number
-    }
-
-
-    console.log("Constructed Query:", JSON.stringify(query, null, 2)); // For debugging
+    console.log("Constructed Query:", JSON.stringify(query, null, 2));
 
     const questions = await CreativeQuestion.find(query)
       .populate('subject', 'englishName banglaName')
-      .sort({ createdAt: -1 }); // Sort by newest first
+      .sort({ createdAt: -1 });
 
     return { success: true, data: questions, count: questions.length };
   } catch (error) {
@@ -234,53 +196,101 @@ export const getQuestionsByFilters = async (filters) => {
 
 // Update a question by ID
 export const updateQuestion = async (id, updateData) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    // Similar validation as create could be done here if needed before update
+    // --- (Your existing parsing logic) ---
+    ['institution', 'chapter', 'cTopic', 'dTopic'].forEach(field => {
+      if (updateData[field] && typeof updateData[field] === 'string') {
+        try { updateData[field] = JSON.parse(updateData[field]); }
+        catch (e) { console.error(`Failed to parse ${field} on update:`, updateData[field]); }
+      }
+    });
+
+    // 1. Update the question document within the transaction
     const updatedQuestion = await CreativeQuestion.findByIdAndUpdate(
       id,
       updateData,
-      { new: true, runValidators: true } // Return updated doc and run validation
-    ).populate('subject', 'englishName banglaName');
+      { new: true, runValidators: true, session } // Pass the session here
+    );
 
     if (!updatedQuestion) {
-      return { success: false, message: 'Question not found' };
+      throw new Error('Question not found'); // This will trigger the catch block and abort the transaction
     }
+
+    // 2. Delete the old embedding to ensure no stale data
+    await QuestionEmbedding.findOneAndDelete({ creativeQuestionId: id }, { session });
+
+    // 3. Prepare and generate the new embedding from updated data
+    const questionForEmbedding = buildEmbeddingObject(updatedQuestion.toObject());
+    const newEmbeddingVector = await createEmbeddingForCreativeQuestions(questionForEmbedding);
+
+    // 4. Create and save the new embedding document
+    const newEmbedding = new QuestionEmbedding({
+      creativeQuestionId: updatedQuestion._id,
+      embedding: newEmbeddingVector
+    });
+    await newEmbedding.save({ session });
+    
+    // 5. If all succeeds, commit the transaction
+    await session.commitTransaction();
+
+    // Populate after commit for the final response
+    await updatedQuestion.populate('subject', 'englishName banglaName');
+    
     return { success: true, data: updatedQuestion };
+
   } catch (error) {
+    // If any step fails, abort the entire transaction
+    await session.abortTransaction();
+    
     console.error("Service Error - Update Question:", error);
-    if (error.name === 'ValidationError') {
-      return {
-        success: false,
-        message: 'Validation Error',
-        error: error.message,
-        details: Object.values(error.errors).map(e => e.message)
-      };
+    if (error.message === 'Question not found') {
+        return { success: false, message: 'Question not found' };
     }
-    if (error.message.includes('Topic') || error.message.includes('Answer') || error.message.includes('SubTopic')) {
-      return { success: false, message: 'Validation Error', error: error.message };
-    }
+    if (error.code === 11000) { /* ... your existing unique key error handling ... */ }
+    if (error.name === 'ValidationError') { /* ... your existing validation error handling ... */ }
     return { success: false, message: 'Error updating question', error: error.message };
+  } finally {
+    // Always end the session
+    session.endSession();
   }
 };
 
+
 // Delete a question by ID
 export const deleteQuestion = async (id) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const question = await CreativeQuestion.findById(id);
+    // 1. Attempt to delete the question document
+    const deletedQuestion = await CreativeQuestion.findByIdAndDelete(id, { session });
 
-   if(!question){
-    return { success: false, message: 'Question not found' };
-   }
-    const deletedQuestion = await CreativeQuestion.findByIdAndDelete(id);
-
-    const siblingQuestion = await CreativeQuestion.findOneAndDelete({uniqueKey: question.uniqueKey})
-    console.log(siblingQuestion)
+    // If no document was found and deleted, throw an error to abort
     if (!deletedQuestion) {
-      return { success: false, message: 'Question not found' };
+      throw new Error('Question not found');
     }
-    return { success: true, message: 'Question deleted successfully', data: deletedQuestion };
+
+    // 2. Delete the associated embedding
+    await QuestionEmbedding.findOneAndDelete({ creativeQuestionId: id }, { session });
+
+    // 3. If both operations were successful, commit the transaction
+    await session.commitTransaction();
+
+    return { success: true, message: 'Question and its embedding deleted successfully', data: deletedQuestion };
   } catch (error) {
+    // If anything fails (e.g., question not found), abort the transaction
+    await session.abortTransaction();
+    
     console.error("Service Error - Delete Question:", error);
+    if (error.message === 'Question not found') {
+        return { success: false, message: 'Question not found' };
+    }
     return { success: false, message: 'Error deleting question', error: error.message };
+  } finally {
+    // Always end the session
+    session.endSession();
   }
 };

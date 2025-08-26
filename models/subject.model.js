@@ -21,37 +21,14 @@ const subjectSchema = new mongoose.Schema({
   },
   chapters: {
     type: [
-      {
+      { 
         englishName: { type: String, trim: true, required: true },
         banglaName: { type: String, required: true },
-        index: { type: Number, required: true },
         topics: [
-          {
-            englishName: { type: String, required: true },
-            banglaName: { type: String, required: true },
-            topicCode: { type: String, },
-            englishDescription: { type: String,  },
-            banglaDescription: { type: String,  },
-            images: [
-              {
-                url: { type: String, },
-                title: { type: String,  },
-              },
-            ],
-            formulas: [
-              {
-                equation: { type: String,  },
-                derivation: { type: String },
-                explanation: { type: String },
-              },
-            ],
-            aliases: {
-              english: [{ type: String }],
-              bangla: [{ type: String }],
-              banglish: [{ type: String }],
-            },
-            index: { type: Number,  },
-          },
+         {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Topic",
+         }  
         ],
       },
     ],

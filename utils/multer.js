@@ -87,7 +87,7 @@ const configurations = {
   none: upload.none(),
   // Multiple files with different field names
   fields: upload.fields([
-    { name: 'avatar', maxCount: 1 },
+    { name: 'image', maxCount: 2 },
     { name: 'qb', maxCount: 6 },
    
    { name: 'stemImage', maxCount: 1 },
@@ -99,7 +99,7 @@ const configurations = {
 
     
     { name: 'documents', maxCount: 8 },
-   { name: 'images', maxCount: 5 }
+   { name: 'topic', maxCount: 6 }
   ]),
   
   // Any files
@@ -127,6 +127,7 @@ const configurations = {
 // Error handling middleware
 const handleMulterError = (err, req, res, next) => {
   if (err instanceof multer.MulterError) {
+    console.error(err);
     switch (err.code) {
       case 'LIMIT_FILE_SIZE':
         return res.status(400).json({ error: 'File too large' });

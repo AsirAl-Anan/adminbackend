@@ -22,21 +22,27 @@ const router = express.Router();
 
 // GET routes
 router.get('/', getSubjects);
-router.get('/filter', getSubjectsByGroupAndLevel); // Query params: ?group=science&level=SSC
+router.get('/filter', getSubjectsByGroupAndLevel); // Query params: ?group=science&level=SSC // default route for fetching subject
 router.get('/level/:level', getSubjectsByLevel);   // Path param: /level/SSC
 router.get('/group/:group', getSubjectsByGroup);   // Path param: /group/science
-router.get('/:id', getSubject);
+router.get('/:id', getSubject);  // get subject by id
 router.get('/:id/topics', getSubjectTopics);
 router.get('/:id/chapters', getSubjectChapters);
 
 // POST routes
 router.post('/', addSubject);
 router.post('/:id/chapters', addChapter);
-
+const parseJson = (req, res, next) => {
+  console.log(req.body);
+  if (req.body.topicData) {
+    req.body.topicData = JSON.parse(req.body.topicData);
+  }
+  next();
+}
 // PUT routes
 router.put('/:id', editSubject);
-router.put('/:id/chapters/:chapterIndex/topics', addTopicToChapter);
-router.put('/:id/chapters/:chapterIndex/topics/:topicIndex',configurations.any, editTopic);
+router.put('/:id/chapters/:chapterIndex/topics', configurations.any, parseJson,addTopicToChapter);
+router.put('/:id/chapters/:chapterIndex/topics/:topicIndex',configurations.any,editTopic);
 // DELETE routes
 router.delete('/:id', deleteSubject);
 router.delete('/:id/chapters/:chapterIndex/topics/:topicIndex', removeTopicFromChapter);

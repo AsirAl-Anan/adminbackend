@@ -114,7 +114,7 @@ export const getSubjectChapters = async (req, res) => {
 export const addSubject = async (req, res) => {
   try {
     const subjectData = req.body;
-    console.log(subjectData)
+    console.log("data",subjectData)
     const result = await subjectService.createSubject(subjectData);
     
     
@@ -245,35 +245,7 @@ export const addChapter = async (req, res) => {
 };
 
 // Add topic to specific chapter
-export const addTopicToChapter = async (req, res) => {
-  try {
-    console.log(req.body)
-    const { id, chapterIndex } = req.params;
-    const { topic } = req.body;
-    const result = await subjectService.addTopicToChapter(id, chapterIndex, topic);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Topic added successfully',
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error adding topic',
-        error: result.error
-      });
-    }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error adding topic',
-      error: error.message
-    });
-  }
-};
+
 // Remove topic from specific chapter (by index)
 export const removeTopicFromChapter = async (req, res) => {
   try {
@@ -500,25 +472,54 @@ export const removeChapterFromSubject = async (req, res) => {
 
 export const editTopic = async(req,res) =>{
   
-  console.log(req.files)
   const {id,chapterIndex,topicIndex} = req.params
   const subjectId = id
-
-  const result = await subjectService.editTopic(subjectId, chapterIndex, topicIndex,req.body, req.files)
-
-  if(result.success === true){
-    res.status(200).json({
-    success: true,
-    message: 'Topic edited successfully',
-    data: result.data
-  });
-  }
-  if(result.success === false){
-    res.status(400).json({
-      success: false,
-      message: result.message
-    });
-  }
+  const data = req.body.editableData
+  const result = await subjectService.editTopic(subjectId, chapterIndex, topicIndex,data, req.files)
+  console.log(result)
+ if(result.success === true){
+   res.status(200).json({
+   success: true,
+   message: 'Topic edited successfully',
+   data: result.data
+ });
+ }
+ if(result.success === false){
+   res.status(400).json({
+     success: false,
+     message: result.error
+   });
+ }
   
 
 }
+export const addTopicToChapter = async (req, res) => {
+  try {
+    console.log(req.body)
+    const { id, chapterIndex } = req.params;
+    const { topicData } = req.body;
+  
+    const result = await subjectService.addTopicToChapter(id, chapterIndex, topicData,req.files);
+    console.log(result)
+    if (result.success) {
+      res.status(200).json({
+        success: true,
+        message: 'Topic added successfully',
+        data: result.data
+      });
+    } else {
+      const statusCode = result.message === 'Subject not found' ? 404 : 500;
+      res.status(statusCode).json({
+        success: false,
+        message: result.message || 'Error adding topic',
+        error: result.error
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Error adding topic',
+      error: error.message
+    });
+  }
+};

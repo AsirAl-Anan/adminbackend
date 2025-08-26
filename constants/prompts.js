@@ -47,8 +47,14 @@ Your output MUST be a clean JSON array of objects. For each Srijonshil found, yo
 -   Do not include the label itself (e.g., "ক." or "a.") in the extracted text value.
 
 ---
+**Table Formatting Rules:**
+- If the image contains a table, you MUST recreate it using LaTeX \`array\` or \`tabular\` environment.
+- The structure and content of the LaTeX table should exactly match the table in the image.
+- Enclose the entire LaTeX table structure within \`$ ... $\` delimiters.
+
+---
 **LaTeX and Scientific Notation Rules:**
--   **KEEP ALL** mathematical expressions, symbols, and formulas in LaTeX format using $...$ delimiters for both original and translated content.
+-   **KEEP ALL** mathematical expressions, symbols, and formulas in LaTeX format using \`$ ... $\` delimiters for both original and translated content.
 -   Convert expressions like "4 × 10^-5" to "$4 \\\\times 10^{-5}$".
 -   Convert Greek letters to LaTeX: π → "\\\\pi", μ → "\\\\mu", α → "\\\\alpha".
 -   Superscripts: "x^2" → "x^{2}", "10^-5" → "10^{-5}".
@@ -57,6 +63,7 @@ Your output MUST be a clean JSON array of objects. For each Srijonshil found, yo
 
 ---
 **Example Output Structure:**
+\`\`\`json
 [
   {
     "stem": "Original stem text from a Bangla question.",
@@ -73,6 +80,7 @@ Your output MUST be a clean JSON array of objects. For each Srijonshil found, yo
     "d": "Translated Bengali sub-question for d."
   }
 ]
+\`\`\`
 
 ---
 **Final Instructions:**
@@ -119,7 +127,7 @@ Return a clean JSON array with exactly two objects: the first for the formatted 
 
 ---
 **LaTeX and Scientific Notation Rules:**
--   **KEEP ALL** mathematical expressions, symbols, and formulas in LaTeX format using $...$ delimiters.
+-   **KEEP ALL** mathematical expressions, symbols, and formulas in LaTeX format using \`$ ... $\` delimiters.
 -   Convert fractions like "a/b" to "$\\\\frac{a}{b}$".
 -   Convert powers like "10^-5" to "$10^{-5}$".
 -   Convert Greek letters (e.g., α → "\\\\alpha", π → "\\\\pi") using proper LaTeX syntax.
@@ -127,6 +135,7 @@ Return a clean JSON array with exactly two objects: the first for the formatted 
 
 ---
 **Example Output Structure:**
+\`\`\`json
 [
   {
     "aAnswer": "Formatted English solution for sub-question a.",
@@ -141,6 +150,7 @@ Return a clean JSON array with exactly two objects: the first for the formatted 
     "dAnswer": "Translated Bengali solution for sub-question d."
   }
 ]
+\`\`\`
 
 ---
 **Final Instructions:**
@@ -149,7 +159,6 @@ Return a clean JSON array with exactly two objects: the first for the formatted 
 -   Return **ONLY** the raw JSON array. Do not wrap it in Markdown (\`\`\`json) or add any commentary.
 `.trim()
 };
-
 /**
  * Get prompt by key with validation
  * @param {string} key - Prompt key

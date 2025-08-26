@@ -6,7 +6,8 @@ import fs from "fs/promises";
  * @returns {Object} Validation result with isValid flag and message
  */
 export function validateImageUpload(req) {
-  if (!req.files || !req.files.qb || req.files.qb.length === 0) {
+  console.log(req.files)
+  if (!req.files ) {
     return {
       isValid: false,
       message: "Please provide at least one image file",
