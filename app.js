@@ -6,11 +6,11 @@ import {RedisStore} from "connect-redis";
 import redisClient from "./config/redis.config.js";
 import AuthRouter from "./routes/auth.routes.js";
 import questionRouter from "./routes/question.routes.js";
-import answerRouter from "./routes/answer.routes.js";
 import aiRouter from "./routes/ai.routes.js";
 import subjectRouter from "./routes/subject.routes.js"; 
 import { connectDb } from "./config/db.config.js";
 import { testing } from "./langchain/geminiAi.js";
+import b2Router from "./routes/b2.routes.js";
 import dotenv from 'dotenv';
 dotenv.config();
 import splitText from "./langchain/index.js";
@@ -62,7 +62,7 @@ app.use("/api/v1/message", messageRouter );
 app.use("/api/v1/qb", questionRouter);
 app.use("/api/v1/ai", aiRouter);
 app.use("/api/v1/subject", subjectRouter); // Use the subject router
-
+app.use("/api/v1/b2", b2Router);
 app.get('/langchain', testing)
 app.post('/langchain',async (req,res)=>{
    const r= await searchSimilarChunks(req.body.query)

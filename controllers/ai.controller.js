@@ -21,7 +21,7 @@ try {
 }
 }
 export const getSimilarDocsBySubjectChapterAndTopic =async (req,res) =>{
- const result = await findSimilarDocsWithParsedContent(req.body.query, 3);
+ const result = await findSimilarDocsWithParsedContent(req.body.query, 10);
 
 res.json({
     success: true,

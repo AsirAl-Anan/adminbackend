@@ -1,103 +1,111 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs/promises";
 import dotenv from "dotenv";
-import { cleanupFiles, getMimeTypeFromPath } from "../utils/file.utils.js";
-import { PROMPTS } from "../constants/prompts.js";
+import { z } from "zod";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 import { HumanMessage } from "@langchain/core/messages";
-import { PromptTemplate, StructuredPrompt } from "@langchain/core/prompts";
-import { RunnableSequence, RunnablePassthrough,RunnableMap } from "@langchain/core/runnables";
+import { PromptTemplate } from "@langchain/core/prompts";
+import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables";
 import { StringOutputParser } from "@langchain/core/output_parsers";
-import fileSystem from "fs";
-import zod from "zod";
+import { cleanupFiles, getMimeTypeFromPath } from "../utils/file.utils.js";
+import { PROMPTS } from "../constants/prompts.js";
+
 dotenv.config();
-const segmentSchema = zod.array(
-  zod.object({
-  title: zod.object({
-    english: zod.string(),
-    bangla: zod.string(),
-  }),
 
-  description: zod.object({
-    english: zod.string(),
-    bangla: zod.string(),
-  }),
+// --- Constants ---
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+  throw new Error("GEMINI_API_KEY is not set in the environment variables.");
+}
 
-  formulas: zod.object({
-    equation: zod.string(),
+const GEMINI_FLASH_MODEL = "gemini-2.5-flash";
+const GEMINI_FLASH_LITE_MODEL = "gemini-2.5-flash-lite";
 
-    derivation: zod.object({
-      english: zod.string(),
-      bangla: zod.string(),
+// --- Zod Schemas ---
+const segmentSchema = z.array(
+  z.object({
+    title: z.object({
+      english: z.string().describe("A concise, descriptive title for the segment in English."),
+      bangla: z.string().describe("A concise, descriptive title for the segment in Bangla."),
     }),
-
-    explanation: zod.object({
-      english: zod.string(),
-      bangla: zod.string(),
+    description: z.object({
+      english: z.string().describe("A clear summary of the segment's content in English."),
+      bangla: z.string().describe("A clear summary of the segment's content in Bangla."),
     }),
-
-   
-  }),
-   aliases: zod.object({
-      english: zod.array(zod.string()),
-      bangla: zod.array(zod.string()),
-      banglish: zod.array(zod.string()),
+    formulas: z.object({
+      equation: z.string().describe("The mathematical formula or equation in LaTeX format."),
+      derivation: z.object({
+        english: z.string().describe("A summary of the formula's derivation in English."),
+        bangla: z.string().describe("A summary of the formula's derivation in Bangla."),
+      }),
+      explanation: z.object({
+        english: z.string().describe("An explanation of the formula and its variables in English."),
+        bangla: z.string().describe("An explanation of the formula and its variables in Bangla."),
+      }),
     }),
-})
-)
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.5-flash",
+    aliases: z.object({
+      english: z.array(z.string()).describe("Relevant search aliases in English."),
+      bangla: z.array(z.string()).describe("Relevant search aliases in Bangla."),
+      banglish: z.array(z.string()).describe("Relevant search aliases in Banglish (phonetic)."),
+    }),
+  })
+);
+
+const imageDataSchema = z.object({
+    title: z.object({
+        english: z.string().describe("A concise title for the image in English."),
+        bangla: z.string().describe("A concise title for the image in Bangla."),
+    }),
+    description: z.object({
+        english: z.string().describe("A detailed description of the image in English."),
+        bangla: z.string().describe("A detailed description of the image in Bangla."),
+    }),
 });
 
+
+// --- Legacy Gemini AI Client (used for simpler tasks) ---
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const legacyModel = genAI.getGenerativeModel({ model: GEMINI_FLASH_MODEL });
+
+// --- Helper Functions ---
+
 /**
- * Clean and parse AI response to extract valid JSON
- * @param {string} text - Raw AI response text
- * @returns {Array|Object} Parsed JSON data or empty array on failure
+ * Clean and parse AI response to extract valid JSON.
+ * @param {string} text - Raw AI response text.
+ * @returns {Array|Object} Parsed JSON data or an empty array on failure.
  */
 function cleanAndParseAIResponse(text) {
   if (!text || typeof text !== "string") {
-    console.warn("cleanAndParseAIResponse received invalid input");
+    console.warn("cleanAndParseAIResponse received invalid input.");
     return [];
   }
 
-  console.log("Cleaning AI response...");
-
-  // Remove markdown code block markers
-  let cleaned = text
+  // Remove markdown code block markers and trim whitespace
+  const cleaned = text
     .replace(/^```(?:json)?\n?/i, "")
     .replace(/```$/, "")
     .trim();
 
   try {
-    // First attempt: parse as-is
-    const parsedOnce = JSON.parse(cleaned);
-
-    // Handle double-encoded JSON
-    if (typeof parsedOnce === "string") {
-      return JSON.parse(parsedOnce);
+    // Attempt to parse the cleaned text
+    let parsedData = JSON.parse(cleaned);
+    // Handle cases where the AI double-encodes JSON as a string
+    if (typeof parsedData === "string") {
+      parsedData = JSON.parse(parsedData);
     }
-
-    return parsedOnce;
+    return parsedData;
   } catch (error) {
-    console.warn("First JSON parse failed:", error.message);
-
-    // Second attempt: fix common escape issues
+    console.warn("Initial JSON parse failed. Attempting to fix and re-parse.", error.message);
     try {
+      // Fix common escape sequence issues (e.g., unescaped backslashes in LaTeX)
       const fixedText = fixEscapeSequences(cleaned);
-      const parsedFixed = JSON.parse(fixedText);
-
-      if (typeof parsedFixed === "string") {
-        return JSON.parse(parsedFixed);
+      let parsedData = JSON.parse(fixedText);
+      if (typeof parsedData === "string") {
+        parsedData = JSON.parse(parsedData);
       }
-
-      return parsedFixed;
+      return parsedData;
     } catch (secondError) {
-      console.error(
-        "Failed to parse AI response after fixes:",
-        secondError.message
-      );
+      console.error("Failed to parse AI response even after fixes:", secondError.message);
       console.error("Problematic text:", cleaned);
       return [];
     }
@@ -105,64 +113,27 @@ function cleanAndParseAIResponse(text) {
 }
 
 /**
- * Fix common escape sequence issues in AI-generated JSON
- * @param {string} text - Text with potential escape issues
- * @returns {string} Fixed text
+ * Fix common escape sequence issues in AI-generated JSON, particularly for LaTeX.
+ * @param {string} text - Text with potential escape issues.
+ * @returns {string} Text with fixed escape sequences.
  */
 function fixEscapeSequences(text) {
-  // Temporarily replace valid JSON escapes
-  const validEscapes = {
-    "\\\\": "__DOUBLE_BACKSLASH__",
-    '\\"': "__QUOTE__",
-    "\\/": "__FORWARD_SLASH__",
-    "\\b": "__BACKSPACE__",
-    "\\f": "__FORM_FEED__",
-    "\\n": "__NEWLINE__",
-    "\\r": "__CARRIAGE_RETURN__",
-    "\\t": "__TAB__",
-  };
-
-  let tempText = text;
-
-  // Replace valid escapes with placeholders
-  Object.entries(validEscapes).forEach(([escapeSeq, placeholder]) => {
-    const regex = new RegExp(
-      escapeSeq.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
-      "g"
-    );
-    tempText = tempText.replace(regex, placeholder);
-  });
-
-  // Fix problematic single backslashes followed by letters (e.g., \times -> \\times)
-  tempText = tempText.replace(/(?<!\\)\\([a-zA-Z])/g, (match, letter) => {
-    console.warn(`Fixing problematic escape sequence: ${match}`);
-    return `\\\\${letter}`;
-  });
-
-  // Restore valid escapes
-  Object.entries(validEscapes).forEach(([escapeSeq, placeholder]) => {
-    tempText = tempText.split(placeholder).join(escapeSeq);
-  });
-
-  return tempText;
+  // This regex finds single backslashes followed by a letter (common in LaTeX, e.g., \frac)
+  // and replaces them with a double backslash to make it a valid JSON string escape.
+  // The negative lookbehind `(?<!\\)` ensures we don't replace already escaped backslashes.
+  return text.replace(/(?<!\\)\\([a-zA-Z])/g, "\\\\$1");
 }
 
 /**
- * Generate content using Gemini AI model
- * @param {Array} parts - Array of content parts (text and images)
- * @returns {Promise<string>} AI response text
+ * Generate content using the legacy Gemini AI model.
+ * @param {Array<Object>} parts - Array of content parts (text and images).
+ * @returns {Promise<string>} AI response text.
  */
 async function generateAIContent(parts) {
   try {
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: parts,
-        },
-      ],
+    const result = await legacyModel.generateContent({
+      contents: [{ role: "user", parts }],
     });
-
     return result.response.text();
   } catch (error) {
     console.error("Error generating AI content:", error);
@@ -171,484 +142,252 @@ async function generateAIContent(parts) {
 }
 
 /**
- * Process image files and convert them to AI-compatible format
- * @param {Array} files - Array of uploaded files
- * @returns {Promise<Array>} Array of processed image parts
+ * Process image files and convert them to AI-compatible base64 format.
+ * @param {Array<Object>} files - Array of uploaded file objects from a middleware like Multer.
+ * @returns {Promise<Array<Object>>} Array of processed image parts for the AI model.
  */
 async function processImageFiles(files) {
-  const imageParts = [];
-  for (const file of files) {
-    try {
-      const imageBuffer = await fs.readFile(file.path);
-      const mimeType = getMimeTypeFromPath(file.path);
-      const base64Data = imageBuffer.toString("base64");
-
-      imageParts.push({
-        inlineData: {
-          mimeType,
-          data: base64Data,
-        },
-      });
-    } catch (error) {
-      console.error(`Error processing file ${file.path}:`, error);
-      throw new Error(`Failed to process image file: ${file.originalname}`);
-    }
-  }
-
-  return imageParts;
+    return Promise.all(
+        files.map(async (file) => {
+            try {
+                const imageBuffer = await fs.readFile(file.path);
+                return {
+                    inlineData: {
+                        mimeType: getMimeTypeFromPath(file.path),
+                        data: imageBuffer.toString("base64"),
+                    },
+                };
+            } catch (error) {
+                console.error(`Error processing file ${file.path}:`, error);
+                throw new Error(`Failed to process image file: ${file.originalname}`);
+            }
+        })
+    );
 }
 
 /**
- * Generic function to process images with AI
- * @param {Array} files - Array of uploaded files
- * @param {string} prompt - AI prompt to use
- * @returns {Promise<Array|Object>} Processed AI response
+ * A generic function to process images with the legacy AI model.
+ * @param {Array<Object>} files - Array of uploaded files.
+ * @param {string} prompt - The AI prompt to use.
+ * @returns {Promise<Array|Object>} Processed and parsed AI response.
  */
 async function processImagesWithAI(files, prompt) {
   try {
-    // Process image files
     const imageParts = await processImageFiles(files);
-
-    // Add prompt to parts
     const allParts = [...imageParts, { text: prompt }];
-
-    // Generate AI content
     const aiResponse = await generateAIContent(allParts);
-
-    // Clean and parse response
-    const result = cleanAndParseAIResponse(aiResponse);
-
-    return result;
+    return cleanAndParseAIResponse(aiResponse);
   } catch (error) {
     console.error("Error in processImagesWithAI:", error);
+    // Re-throw the error to be handled by the caller
     throw error;
   } finally {
-    // Always clean up files
+    // Ensure temporary files are always cleaned up
     await cleanupFiles(files, true);
   }
 }
 
+// --- Exported Functions ---
+
 /**
- * Extract questions from uploaded images
- * @param {Array} files - Array of uploaded image files
- * @returns {Promise<Array>} Array of extracted questions
+ * Extracts questions from uploaded images using a predefined prompt.
+ * @param {Array<Object>} files - Array of uploaded image files.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of extracted questions.
  */
 export async function extractQuestionsFromImages(files) {
   console.log("Extracting questions from images...");
-
   const questions = await processImagesWithAI(files, PROMPTS.EXTRACT_QUESTIONS);
-
   if (!Array.isArray(questions)) {
-    throw new Error("Invalid response format: expected array of questions");
+    throw new Error("Invalid response format: Expected an array of questions.");
   }
-
-  console.log(`Successfully extracted ${questions.length} questions`);
+  console.log(`Successfully extracted ${questions.length} questions.`);
   return questions;
 }
 
 /**
- * Extract answers from uploaded images
- * @param {Array} files - Array of uploaded image files
- * @returns {Promise<Array>} Array of extracted answers (English and Bangla)
+ * Extracts answers from uploaded images using a predefined prompt.
+ * @param {Array<Object>} files - Array of uploaded image files.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of extracted answers.
  */
 export async function extractAnswersFromImages(files) {
   console.log("Extracting answers from images...");
-
   const answers = await processImagesWithAI(files, PROMPTS.EXTRACT_ANSWERS);
-
   if (!Array.isArray(answers) || answers.length !== 2) {
-    throw new Error(
-      "Invalid response format: expected array with English and Bangla answers"
-    );
+    throw new Error("Invalid response format: Expected an array with English and Bangla answers.");
   }
-
-  console.log("Successfully extracted answers in both languages");
+  console.log("Successfully extracted answers in both languages.");
   return answers;
 }
 
 /**
- * Validate extracted questions format
- * @param {Array} questions - Array of question objects
- * @returns {boolean} True if format is valid
+ * Validates the format of extracted questions.
+ * @param {Array<Object>} questions - Array of question objects.
+ * @returns {boolean} True if the format is valid, otherwise false.
  */
 export function validateQuestionsFormat(questions) {
   if (!Array.isArray(questions)) return false;
-
   return questions.every(
-    (question) =>
-      question &&
-      typeof question === "object" &&
-      "stem" in question &&
-      ("a" in question || "ক" in question) // At least one option should exist
+    (q) =>
+      q &&
+      typeof q === "object" &&
+      "stem" in q &&
+      ("a" in q || "ক" in q) // Check for at least one option
   );
 }
 
 /**
- * Validate extracted answers format
- * @param {Array} answers - Array of answer objects
- * @returns {boolean} True if format is valid
+ * Validates the format of extracted answers.
+ * @param {Array<Object>} answers - Array of answer objects.
+ * @returns {boolean} True if the format is valid, otherwise false.
  */
 export function validateAnswersFormat(answers) {
   if (!Array.isArray(answers) || answers.length !== 2) return false;
-
   return answers.every(
-    (answerSet) =>
-      answerSet &&
-      typeof answerSet === "object" &&
-      ("aAnswer" in answerSet ||
-        "bAnswer" in answerSet ||
-        "cAnswer" in answerSet ||
-        "dAnswer" in answerSet)
+    (set) =>
+      set &&
+      typeof set === "object" &&
+      Object.keys(set).some(key => key.endsWith("Answer"))
   );
 }
 
+
+/**
+ * Performs OCR on images, then segments, summarizes, translates, and structures the text
+ * into a detailed topic format using a single, efficient AI call.
+ * @param {Array<Object>} images - Array of uploaded image files.
+ * @returns {Promise<Object>} A promise resolving to the structured topic data.
+ */
 export const extractTopic = async (images) => {
   try {
-    const textExtractionTemplate = `
-You are an OCR agent. Your job is to extract text from the image and strictly format all mathematical expressions in LaTeX.
-
-STRICT LATEX RULES:
-1. Every mathematical expression, symbol, or formula MUST be enclosed in $...$ delimiters. No exceptions.
-   - Example: 4 × 10^-5 → $4 \\times 10^{-5}$
-   - Example: πr^2 → $\\pi r^{2}$
-2. Always convert Greek letters to LaTeX:
-   - π → $\\pi$, μ → $\\mu$, α → $\\alpha$
-3. Superscripts:
-   - x^2 → $x^{2}$
-   - 10^-5 → $10^{-5}$
-4. Subscripts:
-   - H2O → $H_{2}O$
-   - aij → $a_{ij}$
-5. Do not output plain text math. If it is math, it MUST be wrapped in $...$.
-6. Keep all non-mathematical text as normal text (without $...$).
-7. Do not add explanations, only return the extracted text with correct LaTeX formatting.
-`;
-
+    // 1. Define the LangChain model with structured output capabilities
     const llm = new ChatGoogleGenerativeAI({
+      model: GEMINI_FLASH_MODEL,
+      apiKey: GEMINI_API_KEY,
       temperature: 0,
-      model: "gemini-2.5-flash",
-      apiKey: process.env.GEMINI_API_KEY,
     });
+    const structuredLlm = llm.withStructuredOutput(segmentSchema);
+    
+    // 2. Define Prompts
+    const ocrPrompt = PromptTemplate.fromTemplate(
+      `You are an OCR agent. Extract all text from the image(s). Format all mathematical expressions, symbols, and variables strictly in LaTeX (e.g., $F=ma$). Preserve the original text structure.`
+    );
 
-    const ocrData = async (images) => {
-      let imageData = [];
-      for (const image of images) {
-        const imageBuffer = await fs.readFile(image.path);
-        const base64Data = imageBuffer.toString("base64");
-        imageData.push(base64Data);
-      }
-      
-      const content = [
-        { type: "text", text: textExtractionTemplate },
-        ...imageData.map((base64Image) => ({
-          type: "image_url",
-          image_url: { url: `data:image/jpeg;base64,${base64Image}` },
-        })),
-      ];
-      
-      const message = new HumanMessage({ content });
-      const result = await llm.invoke([message]);
-      return result.content;
-    };
+    const topicProcessingPrompt = PromptTemplate.fromTemplate(
+      `You are an expert academic content processor for Bangladeshi HSC/SSC students.
+      Based on the following OCR text, perform these actions:
+      1.  **Segment**: Divide the text into logical segments (concepts, definitions, laws).
+          - **CRITICAL**: If a story is used to explain a concept, merge the lesson into the concept's description. Do not create a segment for the story itself.
+      2.  **Summarize & Translate**: For each segment, create a concise title and description in both fluent English and natural-sounding Bangla.
+      3.  **Formulas**: Extract any formulas, their derivations, and explanations into the designated fields. Use empty strings if none exist.
+      4.  **Aliases**: Generate at least 5 relevant search aliases (English, Bangla, Banglish), including both keyword-based and question-based queries.
+      5.  **Formatting**: Ensure ALL math is in LaTeX ($...$).
+      Your final output must be ONLY the structured JSON requested.
 
-    const result = await ocrData(images);
+      OCR Text: {ocr_text}`
+    );
 
-    const translationTemplate = `
-You are an expert translator and OCR formatting agent. Your job is to:
-
-1. Translate the given English text into **natural, fluent Bengali** that feels human-written, not word-for-word.
-2. Capture the **context and meaning** of the text, adjusting sentence structure where necessary for clarity in Bengali.
-3. Detect titles, headings, or questions and format them in bold using Markdown. Example: **Title:** or **Question 1:**
-4. Preserve the original structure of the text (paragraphs, lists, numbering).
-5. Do not add explanations or commentary — only return the translated and formatted Bengali text.
-
-Text: {text}
-`;
-
-const summarizeTemplate = `
-You are an expert academic summarizer and concept tagger. Your task is to create concise, note-style summaries of academic texts and generate relevant search aliases.
-
-Context:
-1. You will be given text from the SSC and HSC syllabus in English.
-2. Your audience is grade 9–12 students in a bilingual (English/Bangla) environment.
-
-Segmentation Step (MUST DO FIRST):
-- Divide the given paragraph into multiple **segments**.
-- Each segment must be **segment-worthy**: 
-   - It should represent a complete idea, concept, law, or definition. 
-   - Do not create unnecessary or overly short segments.
-- Each segment must consist of:
-   - **Title** (if a heading is provided, use it; if not, create a short descriptive title).
-   - **Description** (the content under that title).
-- If the subject is **Biology or Chemistry**, each segment must hold **more detailed and comprehensive data**, since precision and completeness are critical in these subjects.
-
-**SPECIAL INSTRUCTION: Handling Illustrative Stories & Scenarios**
-This is the most critical rule. When you encounter a story, dialogue, or fictional scenario used to introduce a scientific concept, your segmentation logic must change.
-1.  **Do NOT treat the story as its own segment.**
-2.  **Identify the Core Lesson:** Read the story and understand the single scientific principle it is designed to teach.
-3.  **Merge and Synthesize:** Create a **single segment** for the formal topic. In the description, use the lesson as a natural introduction.
-4.  **Omit Story Details:** Do not mention characters or plot points; connection must be conceptual.
-
-Instructions for Summarization:
-1. Preserve Meaning: Do not change the meaning of the text.
-2. Definitions: Keep definitions concise, 1–2 sentences.
-3. Details & Descriptions: Summarize topic explanations without losing context.
-4. Clarity: Prioritize readability and RAG retrieval.
-5. Conciseness: Focus on core points.
-6. Important order: Follow instructions strictly.
-7. Include every equation. Use LaTeX.
-8. Ensure correct topic relationships.
-9. Include all key points.
-10. Prioritize laws and theories.
-11. Do not skip headings or paragraphs.
-12. Do not describe figures/tables directly.
-13. Use scientifically accurate terms.
-14.Focus on the main parts to creat segments. Do not create unnecessary segments. Always try to fit similar topics into the same segment. But if something is different but is important,unique and have enough data in the paragraph create a unique segment for it
-
-**Alias Generation (For Each Segment):**
-- Generate three types of aliases: **english_alias**, **bangla_alias**, **banglish_alias**.
-
-STRICT LATEX RULES:
-1. Enclose every mathematical expression in $...$.
-2. Convert Greek letters to LaTeX.
-3. Use proper LaTeX for superscripts and subscripts.
-4. Do not output plain text math.
-5. Keep non-math text as normal.
-
-Output:
-- Segment text into **segment-worthy blocks**.
-- Provide a **clear, concise summary** and aliases for each segment.
-- For Biology and Chemistry, include detailed summaries.
-- Maintain all academic info, including equations.
-
-Numbered YAML-like format for segments:
-
-1. 
-title: |Segment Title|
-description: |Segment Summary|
-english_alias: |Keyword 1, Alternative phrase 2, Synonym 3|
-bangla_alias: |কীওয়ার্ড ১, বিকল্প শব্দগুচ্ছ ২, প্রতিশব্দ ৩|
-banglish_alias: |Keyword 1, Bikalpa Shobdoguchho 2, Protishobdo 3|
-
-2.
-title: |Segment Title 2|
-description: |Segment Summary 2|
-english_alias: |Keyword A, Keyword B|
-bangla_alias: |কীওয়ার্ড এ, কীওয়ার্ড বি|
-banglish_alias: |Keyword A, Keyword B|
-
-…and so on for all segments.
-
-Paragraph to be summarized: {paragraph}
-`;
-
-
-    const summarizePrompt = PromptTemplate.fromTemplate(summarizeTemplate);
-    const translationPrompt = PromptTemplate.fromTemplate(translationTemplate);
-
-    const translationChain = RunnableSequence.from([
-      translationPrompt,
-      llm,
-      new StringOutputParser(),
-    ]);
-
-    const llm2 = new ChatGoogleGenerativeAI({
-      model: "gemini-2.5-flash",
-      apiKey: process.env.GEMINI_API_KEY,
-      temperature: 0
-    });
-
-    const segmentStructureTemplate = `
-You are given two paragraphs: one in English and one in Bangla which containes several segments in each paragraph.
-
-Your task is to analyze them and produce structured data that matches the schema provided by the system.
-Important: you are working with notes, so do not edit them.
-### Input Paragraphs:
-English: {english_paragraph}
-Bangla: {bangla_paragraph}
-
-### Instructions:
-- Use the English paragraph for all "english" fields.
-- Use the Bangla paragraph for all "bangla" fields.
-- If there is no formula in the text, set "equation" to "" and leave other formula fields as empty strings.
-- For "banglish", create transliterations of the Bangla terms into English letters.
-- Return only valid JSON that strictly follows the schema definition.
-- Do no say any additional text, just do what is told.
-`;
-
-    const structuredLlm = llm2.withStructuredOutput(segmentSchema);
-    const segmentStructurePrompt = StructuredPrompt.fromTemplate(segmentStructureTemplate);
-
-    const summarizeChain = RunnableSequence.from([
-      summarizePrompt,
-      llm2,
-      new StringOutputParser(),
-    ]);
-
+    // 3. Prepare Image Data for OCR
+    const imageMessages = await Promise.all(
+        images.map(async (image) => {
+            const imageBuffer = await fs.readFile(image.path);
+            return {
+                type: "image_url",
+                image_url: { url: `data:image/jpeg;base64,${imageBuffer.toString("base64")}` },
+            };
+        })
+    );
+    
+    // 4. Create and run the LangChain sequence
     const chain = RunnableSequence.from([
-      RunnableMap.from({
-        text: summarizeChain
-      }),
-      RunnableMap.from({
-        // keep text AND add bangla_paragraph
-        text: new RunnablePassthrough(),
-        bangla_paragraph: translationChain
-      }),
-      RunnableMap.from({
-        text: ({ bangla_paragraph, text }) =>
-          RunnableSequence.from([
-            segmentStructurePrompt,
-            structuredLlm,
-          ]).invoke({ english_paragraph: text, bangla_paragraph })
-      })
-    ]);
-
-    const summarizedResult = await chain.invoke({ paragraph: result });
-
-    return {
-      success: true,
-      data: {
-        summarizedResult
+      {
+        // Step 1: Perform OCR on the images
+        ocr_text: async () => {
+          const ocrMessage = new HumanMessage({
+            content: [
+              { type: "text", text: ocrPrompt.template },
+              ...imageMessages,
+            ],
+          });
+          const result = await llm.invoke([ocrMessage]);
+          return result.content;
+        },
       },
-    };
+      // Step 2: Process the OCR text to get the final structured output
+      topicProcessingPrompt,
+      structuredLlm,
+    ]);
+    
+    const result = await chain.invoke({});
+      console.log(result)
+    return { success: true, data: result };
+
   } catch (error) {
     console.error("Error in extractTopic:", error);
-    throw error;
+    throw error; // Re-throw for the controller to handle
+  } finally {
+      await cleanupFiles(images, true);
   }
 };
 
-export const extractDataFromImage = async(image)=>{
+
+/**
+ * Analyzes a single image to generate a title and description in both English and Bangla.
+ * This is optimized to use a single AI call for efficiency.
+ * @param {Object} image - A single uploaded image file object.
+ * @returns {Promise<Object>} A promise resolving to the structured image data.
+ */
+export const extractDataFromImage = async (image) => {
   try {
-    const immageBuffer = await fs.readFile(image.path);
-    const base64Data = immageBuffer.toString("base64");
-    console.log(base64Data)
-const message = new HumanMessage({
-  content: [
-    {
-      type: "text",
-      text: `You are a highly meritorious HSC/SSC student from Bangladesh, skilled at creating clear and insightful academic notes. 
-Your task is to analyze an image (which may be a graph, scientific diagram, or figure) and generate both a precise title and a detailed description.  
-
-STRICT RULES:
-- Always format all mathematical symbols, formulas, and variables using LaTeX enclosed in $...$.  
-  Example: $v_0$, $t_1$, $F = ma$, $\\theta$, $\\Delta t$.  
-- Use Greek letters (α, β, θ, λ, etc.) when appropriate in physics, chemistry, or mathematics notation.  
-- Do not mix plain text with math — if it’s a variable, write it in LaTeX.  
-
-Instructions:  
-1. **Title:**  
-   - Provide a concise and meaningful title that reflects the core idea of the image.  
-   - If it is a graph, mention what it represents (e.g., “Velocity vs Time Graph showing uniform acceleration between $t_1$ and $t_2$”).  
-   - If it is a figure (e.g., forces, human heart), specify the objects/variables involved and their context.  
-
-2. **Description:**  
-   - Explain the image clearly, focusing on:  
-     - Key elements, variables, and labels.  
-     - Important points, states, or transitions.  
-     - The main idea or conclusion the image is trying to convey.  
-   - Keep the explanation structured and easy to understand, as if writing quality HSC/SSC notes.  
-
-Examples:  
-- If given a velocity vs time graph:  
-  **Title:** Velocity vs Time graph showing uniform acceleration between $t_1$ and $t_2$.  
-  **Description:** The graph starts at velocity $v_0$ at time $t_1$ and increases linearly with time, indicating constant acceleration. The slope of the graph represents acceleration $a$, and the area under the curve represents displacement $s$.  
-
-- If given a figure of tension between two forces:  
-  **Title:** Figure of tension acting between Object A and Object B ($T$).  
-  **Description:** The figure shows Object A pulling Object B with a force $T$. Both objects experience equal and opposite tension forces. The main concept highlighted is Newton’s Third Law of Motion, which states that every action has an equal and opposite reaction.  
-
-      `,
-    },
-    {
-      type: "image_url",
-      image_url: {
-        url: `data:image/jpeg;base64,${base64Data}`,
-      },
-    },
-  ],
-});
+    // 1. Define the LangChain model with structured output
     const llm = new ChatGoogleGenerativeAI({
-      model: "gemini-2.5-flash-lite",
-      apiKey: process.env.GEMINI_API_KEY,
-      temperature: 0.2
-    })
-    const translationTemplate = `
-You are an academic translator whose job is to translate English academic notes into Bangla in a natural, human-like way.  
-You must ensure that the translation reflects context and meaning, not just word-for-word translation.  
-Your target audience is Bangladeshi HSC and SSC students, so the Bangla should feel like authentic class notes.  
+      model: GEMINI_FLASH_LITE_MODEL,
+      apiKey: GEMINI_API_KEY,
+      temperature: 0.2,
+    });
+    const structuredLlm = llm.withStructuredOutput(imageDataSchema);
 
-Task:  
-Take the given  **Title** and **Description** from the text and provide the output in  Bangla. 
+    // 2. Create a single, comprehensive prompt
+    const imageAnalysisPrompt = PromptTemplate.fromTemplate(
+      `You are a skilled academic analyst for Bangladeshi HSC/SSC students. Your task is to analyze the given image and generate a structured JSON output with a title and description in both English and natural-sounding Bangla.
 
+      STRICT RULES:
+      - ALL mathematical symbols, formulas, and variables MUST be formatted using LaTeX (e.g., $v_0$, $F=ma$, $\\Delta t$).
+      - The Bangla translation must be fluent and context-aware, not a literal translation.
+      - Return ONLY a valid JSON object matching the requested schema.
 
-Format:  
- 
-- Title: <write the Bangla translation of the title here>  
-- Description: <write the Bangla translation of the description here>  
-
-Rules:  
-1. Translate in a **context-aware, natural style** that feels like proper HSC/SSC notes, not robotic word translation.  
-2. Keep **scientific terms** (e.g., velocity, acceleration, force, current, heart, photosynthesis) in **English** inside Bangla sentences if that’s how they are commonly used in HSC/SSC textbooks.  
-3. Use correct **scientific terminology** in Bangla (e.g., displacement → স্থানচ্যুতি, equilibrium → সাম্যাবস্থা).  
-4. Always preserve **formulas, variables, units, and Greek letters** in LaTeX form (e.g., $v_0$, $a$, $\\theta$) in both languages without translation.  
-5. Do not omit or shorten information — the Bangla and English descriptions must carry **the same depth and details**.  
-6. The Bangla output must read like notes a good teacher would give: clear, fluent, and easy for students to grasp.  
-
-
-
-The text you will need to translate: {english_paragraph}
-`;
-const str = new StringOutputParser();
-  const getImageData =  await llm.pipe(str).invoke([message]) ;
-    console.log("g",getImageData)
-  const translationPrompt = PromptTemplate.fromTemplate(translationTemplate)
-    const translationChain = RunnableSequence.from([
-      translationPrompt,
-      llm,
-      new StringOutputParser(),
+      ANALYSIS:
+      1. **Title**: Create a concise title that reflects the core idea of the image.
+      2. **Description**: Explain the image's key elements, variables, and the main scientific principle it demonstrates.
+      `
+    );
     
-    ])
+    // 3. Prepare the image data
+    const imageBuffer = await fs.readFile(image.path);
+    const base64Data = imageBuffer.toString("base64");
+    const messages = new HumanMessage({
+        content: [
+            { type: "text", text: imageAnalysisPrompt.template },
+            { 
+                type: "image_url",
+                image_url: { url: `data:image/jpeg;base64,${base64Data}` }
+            },
+        ],
+    });
 
- 
-   const togetherDataTemplate = `
-   your job is to gather english data and bangla data from the given inputs into the english title and description and bangla translate and description field
-   english_paragrah: {english_paragraph}
-   bangla_paragraph: {bangla_paragraph}
-   `
-   const togetherPrompt = PromptTemplate.fromTemplate(togetherDataTemplate)
-   const structure = zod.object({
-  title: zod.object({
-    english: zod.string(),
-    bangla: zod.string()
-  })
-  ,
-  description: zod.object({
-    english: zod.string(),
-    bangla: zod.string()
-  }),
-  
-  
-   })
-   const structuredLlm = llm.withStructuredOutput(structure)
-   const togetherDataChain = RunnableSequence.from([
-     togetherPrompt,
-     structuredLlm
-   ])
-      const mainChain = RunnableSequence.from([
-        {
-          bangla_paragraph : translationChain,
-          english_paragraph: new RunnablePassthrough()
-        
-        },
-        togetherDataChain
+    // 4. Create and run the chain
+    const chain = RunnableSequence.from([
+        () => messages, // Pass the prepared message to the model
+        structuredLlm,
+    ]);
 
-      ])
-    const res = await mainChain.invoke({
-      english_paragraph: getImageData,
+    const result = await chain.invoke({});
     
-    })
-    return res
+    return { success: true, data: result };
+
   } catch (error) {
-    return {success: false, error}
+    console.error("Error in extractDataFromImage:", error);
+    throw error; // Re-throw for centralized error handling
+  } finally {
+      await cleanupFiles([image], true);
   }
-}
+};

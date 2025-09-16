@@ -18,6 +18,7 @@ import {
   editTopic
 } from '../controllers/subject.controller.js'; // Adjust path as needed
 import { configurations } from '../utils/multer.js';
+import { deleteAll, recreateAllTopicEmbeddings } from '../services/subject.service.js';
 const router = express.Router();
 
 // GET routes
@@ -39,6 +40,8 @@ const parseJson = (req, res, next) => {
   }
   next();
 }
+
+router.post('/delete', deleteAll)
 // PUT routes
 router.put('/:id', editSubject);
 router.put('/:id/chapters/:chapterIndex/topics', configurations.any, parseJson,addTopicToChapter);

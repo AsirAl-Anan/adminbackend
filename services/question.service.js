@@ -4,10 +4,10 @@ import QuestionEmbedding from '../models/question.embedding.model.js';
 import { createEmbeddingForCreativeQuestions } from './aiRag.service.js';
 // To use validation, uncomment these imports
  import Subject from '../models/subject.model.js';
- import Chapter from '../models/chapter.model.js';
  import Topic from '../models/topic.model.js';
+import { version } from 'mongoose';
 
-
+import mongoose from 'mongoose';
 // Helper to transform new schema data into the flat structure expected by the embedding service
 const buildEmbeddingObject = (questionData) => {
   const embeddingData = {
@@ -25,6 +25,7 @@ const buildEmbeddingObject = (questionData) => {
       englishName: questionData.cTopic.englishName,
       banglaName: questionData.cTopic.banglaName,
     } : undefined,
+    version: questionData?.version,
   };
 
   if (questionData.d) {
@@ -35,6 +36,12 @@ const buildEmbeddingObject = (questionData) => {
       englishName: questionData.dTopic.englishName,
       banglaName: questionData.dTopic.banglaName,
     };
+  }
+  if(questionData.cType){ 
+    embeddingData.cType = questionData.cType;
+  }
+  if(questionData.dType){
+    embeddingData.dType = questionData.dType;
   }
 
   Object.keys(embeddingData).forEach(key => embeddingData[key] === undefined && delete embeddingData[key]);
@@ -294,3 +301,4 @@ export const deleteQuestion = async (id) => {
     session.endSession();
   }
 };
+

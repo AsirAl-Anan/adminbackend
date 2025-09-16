@@ -1,26 +1,102 @@
 import mongoose from "mongoose";
 // Import the SubjectEmbedding model to interact with it in the middleware
 import SubjectEmbedding from "./subject.embedding.model.js"; // <-- ADD THIS IMPORT (verify path is correct)
-
+//old schema
+// const topicSchema = new mongoose.Schema(
+//   {
+//     subjectId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Subject",
+//       required: true,
+//     },
+//     chapterName: {
+//       bangla: { type: String },
+//       english: { type: String },
+//       chapterId: { type: mongoose.Schema.Types.ObjectId },
+//     },
+//     englishName: { type: String, required: true },
+//     banglaName: { type: String, required: true },
+//     type: { type: String, enum: ["theory", "practical"], default: "theory" },
+//     questionTypes: [
+//       {
+//         english: { type: String },
+//         bangla: { type: String },
+//       },
+//     ],
+//     aliases: {
+//       english: [{ type: String, required: true }],
+//       bangla: [{ type: String, required: true }],
+//       banglish: [{ type: String, required: true }],
+//     },
+//     segments: [
+//       {
+//         uniqueKey: { type: String, required: true },
+//         title: {
+//           english: { type: String, required: true },
+//           bangla: { type: String, required: true },
+//         },
+//         description: {
+//           english: { type: String, required: true },
+//           bangla: { type: String, required: true },
+//         },
+//         images: [
+//           {
+//             url: { type: String },
+//             title: {
+//               english: { type: String },
+//               bangla: { type: String },
+//             },
+//             description: {
+//               english: { type: String },
+//               bangla: { type: String },
+//             },
+//           },
+//         ],
+//         formulas: [
+//           {
+//             equation: { type: String },
+//             derivation: {
+//               english: { type: String },
+//               bangla: { type: String },
+//             },
+//             explanation: {
+//               english: { type: String },
+//               bangla: { type: String },
+//             },
+//           },
+//         ],
+//         aliases: {
+//           english: [{ type: String, required: true }],
+//           bangla: [{ type: String, required: true }],
+//           banglish: [{ type: String, required: true }],
+//         },
+//       },
+//     ],
+//   },
+//   {
+//     timestamps: true,
+//   }
+// );
+//new schema
 const topicSchema = new mongoose.Schema(
   {
+    linkingId: { type: String, required: true, index: true },
+    version: { type: String, enum: ['english', 'bangla'], required: true },
+    name: { type: String, required: true }, // Replaces englishName/banglaName
+
     subjectId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Subject",
       required: true,
     },
-    chapterName: {
-      bangla: { type: String },
-      english: { type: String },
+    chapterName: { // Simplified
+      name: { type: String }, // Chapter name in the topic's language
       chapterId: { type: mongoose.Schema.Types.ObjectId },
     },
-    englishName: { type: String, required: true },
-    banglaName: { type: String, required: true },
     type: { type: String, enum: ["theory", "practical"], default: "theory" },
     questionTypes: [
       {
-        english: { type: String },
-        bangla: { type: String },
+        name: { type: String }, // Simplified
       },
     ],
     aliases: {
@@ -31,38 +107,20 @@ const topicSchema = new mongoose.Schema(
     segments: [
       {
         uniqueKey: { type: String, required: true },
-        title: {
-          english: { type: String, required: true },
-          bangla: { type: String, required: true },
-        },
-        description: {
-          english: { type: String, required: true },
-          bangla: { type: String, required: true },
-        },
+        title: { type: String, required: true }, // Simplified
+        description: { type: String, required: true }, // Simplified
         images: [
           {
             url: { type: String },
-            title: {
-              english: { type: String },
-              bangla: { type: String },
-            },
-            description: {
-              english: { type: String },
-              bangla: { type: String },
-            },
+            title: { type: String }, // Simplified
+            description: { type: String }, // Simplified
           },
         ],
         formulas: [
           {
             equation: { type: String },
-            derivation: {
-              english: { type: String },
-              bangla: { type: String },
-            },
-            explanation: {
-              english: { type: String },
-              bangla: { type: String },
-            },
+            derivation: { type: String }, // Simplified
+            explanation: { type: String }, // Simplified
           },
         ],
         aliases: {

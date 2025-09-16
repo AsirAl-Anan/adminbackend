@@ -1,709 +1,821 @@
-import Subject from '../models/subject.model.js';
-import { uploadImage } from '../utils/cloudinary.js';
-import Topic from '../models/topic.model.js';
 import mongoose from 'mongoose';
-import { MongoDBAtlasVectorSearch } from '@langchain/mongodb';
-import embeddings from './aiEmbedding.service.js';
+import Subject from '../models/subject.model.js';
+import Topic from '../models/topic.model.js';
 import SubjectEmbedding from '../models/subject.embedding.model.js';
+import { uploadImage } from '../utils/cloudinary.js';
 import { cleanupFiles } from '../utils/file.utils.js';
+import embeddings from './aiEmbedding.service.js';
+import { v4 as uuidv4 } from 'uuid';
+
+// =================================================================================
+// --- HELPER FUNCTIONS FOR DATA TRANSFORMATION ---
+// These functions are the core of the refactor, handling the merge/split logic.
+// =================================================================================
+
+/**
+ * Merges separate English and Bangla subject documents into a single object 
+ * that matches the old API format. This makes the backend change invisible to the frontend.
+ * @param {object} enDoc - The English subject Mongoose document.
+ * @param {object} bnDoc - The Bangla subject Mongoose document.
+ * @returns {object|null} A single, merged subject object, or null if input is invalid.
+ */
+const _mergeSubjectDocuments = (enDoc, bnDoc) => {
+  if (!enDoc || !bnDoc) return enDoc || bnDoc || null;
+
+  // Convert Mongoose documents to plain objects for manipulation
+  const enObj = enDoc.toObject ? enDoc.toObject() : enDoc;
+  const bnObj = bnDoc.toObject ? bnDoc.toObject() : bnDoc;
+
+  const merged = {
+    ...enObj,
+    _id: enObj._id, // Present a consistent _id to the frontend
+    englishName: enObj.name,
+    banglaName: bnObj.name,
+    chapters: enObj.chapters.map((enChapter, i) => {
+      const bnChapter = bnObj.chapters[i] || { name: '', topics: [] };
+      const mergedChapter = {
+        ...enChapter,
+        englishName: enChapter.name,
+        banglaName: bnChapter.name,
+      };
+      delete mergedChapter.name; // Clean up new schema field
+
+      // If topics are populated objects (not just ObjectIDs), they must also be merged.
+      if (Array.isArray(enChapter.topics) && enChapter.topics.length > 0 && typeof enChapter.topics[0] === 'object') {
+          mergedChapter.topics = enChapter.topics.map((enTopic, j) => {
+              const bnTopic = bnChapter.topics?.[j] || {};
+              return _mergeTopicDocuments(enTopic, bnTopic);
+          });
+      }
+      return mergedChapter;
+    })
+  };
+
+  // Clean up new schema fields from the top-level object
+  delete merged.name;
+  delete merged.version;
+  return merged;
+};
+
+/**
+ * Merges separate English and Bangla topic documents into the old single-object format.
+ * @param {object} enTopic - The English topic document/object.
+ * @param {object} bnTopic - The Bangla topic document/object.
+ * @returns {object|null} A single, merged topic object, or null if input is invalid.
+ */
+const _mergeTopicDocuments = (enTopic, bnTopic) => {
+  if (!enTopic) return null;
+  const bnTopicSafe = bnTopic || {}; // Handle cases where a bangla version might be missing temporarily
+
+  // Convert Mongoose documents to plain objects if they are not already
+  const enObj = enTopic.toObject ? enTopic.toObject() : enTopic;
+  const bnObj = bnTopicSafe.toObject ? bnTopicSafe.toObject() : bnTopicSafe;
+
+  const merged = {
+    ...enObj,
+    _id: enObj._id,
+    englishName: enObj.name,
+    banglaName: bnObj.name,
+    chapterName: {
+      english: enObj.chapterName?.name,
+      bangla: bnObj.chapterName?.name,
+      chapterId: enObj.chapterName?.chapterId,
+    },
+    questionTypes: (enObj.questionTypes || []).map((q, i) => ({
+      english: q.name,
+      bangla: bnObj.questionTypes?.[i]?.name,
+    })),
+    segments: (enObj.segments || []).map((enSegment, i) => {
+      const bnSegment = bnObj.segments?.[i] || {};
+      return {
+        ...enSegment,
+        title: { english: enSegment.title, bangla: bnSegment.title },
+        description: { english: enSegment.description, bangla: bnSegment.description },
+        images: (enSegment.images || []).map((enImage, j) => {
+            const bnImage = bnSegment.images?.[j] || {};
+            return { ...enImage, title: { english: enImage.title, bangla: bnImage.title }, description: { english: enImage.description, bangla: bnImage.description }};
+        }),
+        formulas: (enSegment.formulas || []).map((enFormula, j) => {
+            const bnFormula = bnSegment.formulas?.[j] || {};
+            return { ...enFormula, derivation: { english: enFormula.derivation, bangla: bnFormula.derivation }, explanation: { english: enFormula.explanation, bangla: bnFormula.explanation }};
+        }),
+      };
+    }),
+  };
+
+  delete merged.name;
+  delete merged.version;
+  return merged;
+};
+
+/**
+ * Transforms incoming topic data from the old format into the new, language-specific format.
+ * @param {object} data - The original topic data from the request.
+ * @param {'english' | 'bangla'} version - The target language version.
+ * @returns {object} The transformed data ready for the new schema.
+ */
+const _transformTopicData = (data, version) => {
+  console.log("inside transform data", data)
+  const lang = version;
+  return {
+    name: data[`${lang}Name`],
+    type: data.type,
+    questionTypes: (data.questionTypes || []).map(q => ({ name: q[lang] })),
+    aliases: data.aliases,
+    segments: (data.segments || []).map(seg => ({
+      uniqueKey: seg.uniqueKey || uuidv4(),
+      title: seg.title?.[lang],
+      description: seg.description?.[lang],
+      aliases: seg.aliases,
+      images: (seg.images || []).map(img => ({ url: img.url, title: img.title?.[lang], description: img.description?.[lang] })),
+      formulas: (seg.formulas || []).map(f => ({ equation: f.equation, derivation: f.derivation?.[lang], explanation: f.explanation?.[lang] })),
+    })),
+  };
+};
+
+
+/**
+ * [NEW HELPER] Creates a comprehensive text chunk for embedding from various topic components.
+ * This includes optional fields like formulas, images, and aliases.
+ * @param {'english' | 'bangla'} language - The target language for the chunk text.
+ * @param {object} subject - The subject document.
+ * @param {object} chapter - The chapter object from the subject document.
+ * @param {object} topic - The topic document.
+ * @param {object} segment - The segment object from the topic document.
+ * @returns {string} A formatted string ready for embedding.
+ */
+const _createEmbeddingChunkText = (language, subject, chapter, topic, segment) => {
+    let textParts = [];
+
+    if (language === 'english') {
+        textParts.push(`The subject name is "${subject.name}", chapter name is "${chapter.name}", topic is "${topic.name}".`);
+        textParts.push(`The segment is about "${segment.title}".`);
+        if (segment.description) {
+            textParts.push(`description: "${segment.description}".`);
+        }
+        if (segment.aliases?.english?.length > 0) {
+            textParts.push(`Aliases for this are: "${segment.aliases.english.join(', ')}".`);
+        }
+        if (segment.formulas?.length > 0) {
+            const formulasText = segment.formulas.map(f => {
+                let formulaString = `Equation: ${f.equation || 'N/A'}`;
+                if (f.derivation) formulaString += `, Derivation: ${f.derivation}`;
+                if (f.explanation) formulaString += `, Explanation: ${f.explanation}`;
+                return formulaString;
+            }).join('; ');
+            textParts.push(`related formulas are: "${formulasText}".`);
+        }
+        if (segment.images?.length > 0) {
+            const imagesText = segment.images.map(img => {
+                let imageString = `Image available at ${img.url}`;
+                if (img.description) imageString += ` described as: ${img.description}`;
+                return imageString;
+            }).join('; ');
+            textParts.push(`related images are: "${imagesText}".`);
+        }
+    } else { // Bangla
+        textParts.push(`বিষয়টির নাম "${subject.name}", অধ্যায়ের নাম "${chapter.name}", টপিকটি হলো "${topic.name}"।`);
+        textParts.push(`সেগমেন্টটি "${segment.title}" সম্পর্কে।`);
+        if (segment.description) {
+            textParts.push(`বর্ণনা: "${segment.description}"।`);
+        }
+        if (segment.aliases?.bangla?.length > 0) {
+            textParts.push(`এর অন্যান্য নামগুলো হলো: "${segment.aliases.bangla.join(', ')}"।`);
+        }
+        if (segment.formulas?.length > 0) {
+            const formulasText = segment.formulas.map(f => {
+                let formulaString = `সমীকরণ: ${f.equation || 'N/A'}`;
+                if (f.derivation) formulaString += `, প্রতিপাদন: ${f.derivation}`;
+                if (f.explanation) formulaString += `, ব্যাখ্যা: ${f.explanation}`;
+                return formulaString;
+            }).join('; ');
+            textParts.push(`সম্পর্কিত সূত্রগুলো হলো: "${formulasText}"।`);
+        }
+        if (segment.images?.length > 0) {
+            const imagesText = segment.images.map(img => {
+                let imageString = `ছবিটি ${img.url} এ পাওয়া যাবে`;
+                if (img.description) imageString += `, যার বর্ণনা: ${img.description}`;
+                return imageString;
+            }).join('; ');
+            textParts.push(`সম্পর্কিত ছবিগুলো হলো: "${imagesText}"।`);
+        }
+    }
+
+    return textParts.join(' ').trim();
+};
+
+
+// =================================================================================
+// --- REFACTORED SERVICE FUNCTIONS ---
+// =================================================================================
 
 export const getAllSubjects = async () => {
   try {
-    const subjects = await Subject.find();
-    return { success: true, data: subjects };
+    const allDocs = await Subject.find().sort({ createdAt: 1 });
+    const groupedByLinkingId = allDocs.reduce((acc, doc) => {
+      if (!acc[doc.linkingId]) acc[doc.linkingId] = {};
+      acc[doc.linkingId][doc.version] = doc;
+      return acc;
+    }, {});
+    const mergedSubjects = Object.values(groupedByLinkingId)
+      .map(group => _mergeSubjectDocuments(group.english, group.bangla))
+      .filter(Boolean); // Filter out any incomplete pairs
+    return { success: true, data: mergedSubjects };
   } catch (error) {
     return { success: false, error: error.message };
   }
 };
 
-// Get single subject by ID
 export const getSubjectById = async (id) => {
   try {
-    const subject = await Subject.findById(id).populate({
-      path: 'chapters.topics',
-      model: 'Topic',
-      select: 'englishName banglaName   type questionTypes images formulas aliases index segments'
-    });
+    const doc = await Subject.findById(id);
+    if (!doc) return { success: false, message: 'Subject not found' };
+
+    const docs = await Subject.find({ linkingId: doc.linkingId })
+      .populate({ path: 'chapters.topics', model: 'Topic' });
     
-    if (!subject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    return { success: true, data: subject };
+    const enDoc = docs.find(d => d.version === 'english');
+    const bnDoc = docs.find(d => d.version === 'bangla');
+    if (!enDoc || !bnDoc) return { success: false, message: 'Subject language pair is incomplete.' };
+
+    const mergedSubject = _mergeSubjectDocuments(enDoc, bnDoc);
+    return { success: true, data: mergedSubject };
   } catch (error) {
     return { success: false, error: error.message };
   }
 };
 
-// Get subject topics by subject ID
-export const getSubjectTopicsById = async (id) => {
-  try {
-    const subject = await Subject.findById(id, 'chapters englishName').populate({
-      path: 'chapters.topics',
-      model: 'Topic'
-    });
-    
-    if (!subject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    // Flatten all topics from all chapters
-    const allTopics = subject.chapters.reduce((topics, chapter) => {
-      return [...topics, ...chapter.topics];
-    }, []);
-    
-    return { 
-      success: true, 
-      data: {
-        subjectId: subject._id,
-        subjectName: subject.englishName,
-        topics: allTopics
-      }
-    };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
+// Helper function to populate and merge subjects for multiple read operations
+const _findAndMergeSubjects = async (filter) => {
+    const allDocs = await Subject.find(filter).populate({ path: 'chapters.topics', model: 'Topic' });
+    const grouped = allDocs.reduce((acc, doc) => {
+        if (!acc[doc.linkingId]) acc[doc.linkingId] = {};
+        acc[doc.linkingId][doc.version] = doc;
+        return acc;
+    }, {});
+    const merged = Object.values(grouped)
+        .map(group => _mergeSubjectDocuments(group.english, group.bangla))
+        .filter(Boolean);
+    return { success: true, data: merged, count: merged.length };
 };
 
-// Get chapters with topics for a specific subject
-export const getSubjectChaptersById = async (id) => {
-  try {
-    const subject = await Subject.findById(id, 'englishName banglaName chapters').populate({
-      path: 'chapters.topics',
-      model: 'Topic'
-    });
-    
-    if (!subject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    return { 
-      success: true,
-      data: {
-        subjectId: subject._id,
-        subjectName: {
-          english: subject.englishName,
-          bangla: subject.banglaName
-        },
-        chapters: subject.chapters
-      }
-    };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
 
-// Add new subject
-export const createSubject = async (subjectData) => {
-  try {
-    const newSubject = new Subject(subjectData);
-    const savedSubject = await newSubject.save();
-    return { success: true, data: savedSubject };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Edit subject
-export const updateSubject = async (id, updateData) => {
-  try {
-    const updatedSubject = await Subject.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedSubject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    return { success: true, data: updatedSubject };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Delete subject
-export const deleteSubject = async (id) => {
-  try {
-    // First delete all topics associated with this subject
-    await Topic.deleteMany({ subjectId: id });
-    
-    const deletedSubject = await Subject.findByIdAndDelete(id);
-    
-    if (!deletedSubject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    return { success: true, data: deletedSubject };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Add chapter to subject
-export const addChapterToSubject = async (id, chapterData) => {
-  try {
-    const { englishName, banglaName, index, topics } = chapterData;
-    console.log(chapterData);
-    
-    const updatedSubject = await Subject.findByIdAndUpdate(
-      id,
-      { $push: { chapters: { englishName, banglaName, topics: topics || [], index } } },
-      { new: true, runValidators: true }
-    );
-    
-    if (!updatedSubject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    return { success: true, data: updatedSubject };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Add topic to specific chapter
-
-
-// Remove topic from specific chapter
-export const removeTopicFromChapter = async (id, chapterIndex, topicIndex) => {
-  try {
-    const subject = await Subject.findById(id);
-    
-    if (!subject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    if (!subject.chapters[chapterIndex]) {
-      return { success: false, message: 'Chapter not found' };
-    }
-    
-    if (!subject.chapters[chapterIndex].topics[topicIndex]) {
-      return { success: false, message: 'Topic not found' };
-    }
-    
-    const topicId = subject.chapters[chapterIndex].topics[topicIndex];
-    
-    // Delete the topic document
-    await Topic.findByIdAndDelete(topicId);
-    
-    // Remove topic reference from chapter
-    subject.chapters[chapterIndex].topics.splice(topicIndex, 1);
-    await subject.save();
-    
-    return { success: true, data: subject };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Remove topic from chapter by name
-export const removeTopicFromChapterByNames = async (id, chapterIndex, topicEnglishName) => {
-  try {
-    const subject = await Subject.findById(id).populate('chapters.topics');
-    
-    if (!subject) {
-      return { success: false, message: 'Subject not found' };
-    }
-    
-    if (!subject.chapters[chapterIndex]) {
-      return { success: false, message: 'Chapter not found' };
-    }
-    
-    // Find the topic to remove
-    const topicToRemove = subject.chapters[chapterIndex].topics.find(
-      topic => topic.englishName === topicEnglishName
-    );
-    
-    if (!topicToRemove) {
-      return { success: false, message: 'Topic not found' };
-    }
-    
-    // Delete the topic document
-    await Topic.findByIdAndDelete(topicToRemove._id);
-    
-    // Remove topic reference from chapter
-    const updatedSubject = await Subject.findByIdAndUpdate(
-      id,
-      { $pull: { [`chapters.${chapterIndex}.topics`]: topicToRemove._id } },
-      { new: true, runValidators: true }
-    );
-    
-    return { success: true, data: updatedSubject };
-  } catch (error) {
-    return { success: false, error: error.message };
-  }
-};
-
-// Get subjects by group and level
 export const getSubjectsByGroupAndLevel = async (group, level) => {
   try {
     const filter = {};
-    
-    if (group) {
-      filter.group = group;
-    }
-    
-    if (level) {
-      filter.level = level;
-    }
-    
-    const subjects = await Subject.find(filter).populate({
-      path: 'chapters.topics',
-      model: 'Topic',
-      select: 'englishName banglaName   type questionTypes images formulas aliases index segments uniqueKey'
-    });
-    
-    return { 
-      success: true, 
-      data: subjects,
-      count: subjects.length
-    };
+    if (group) filter.group = group;
+    if (level) filter.level = level;
+    return await _findAndMergeSubjects(filter);
   } catch (error) {
     return { success: false, error: error.message };
   }
 };
 
-// Get subjects by level only
-export const getSubjectsByLevel = async (level) => {
+export const createSubject = async (subjectData) => {
   try {
-    const subjects = await Subject.find({ level });
+    const linkingId =await uuidv4();
+    const commonData = { ...subjectData };
+    delete commonData.englishName;
+    delete commonData.banglaName;
+    delete commonData.chapters;
+
+    const englishDocData = { ...commonData, linkingId, version: 'english', name: subjectData.englishName, chapters: (subjectData.chapters || []).map(ch => ({ name: ch.englishName, aliases: ch.aliases, topics: ch.topics || [] })) };
+    const banglaDocData = { ...commonData, linkingId, version: 'bangla', name: subjectData.banglaName, chapters: (subjectData.chapters || []).map(ch => ({ name: ch.banglaName, aliases: ch.aliases, topics: ch.topics || [] })) };
+
+    const [savedEnDoc, savedBnDoc] = await Subject.create([englishDocData, banglaDocData]);
+    const mergedSubject = _mergeSubjectDocuments(savedEnDoc, savedBnDoc);
     
-    return { 
-      success: true, 
-      data: subjects,
-      count: subjects.length
-    };
+    return { success: true, data: mergedSubject };
   } catch (error) {
     return { success: false, error: error.message };
   }
 };
 
-// Get subjects by group only
-export const getSubjectsByGroup = async (group) => {
+export const updateSubject = async (id, updateData) => {
   try {
-    const subjects = await Subject.find({ group });
-    
-    return { 
-      success: true, 
-      data: subjects,
-      count: subjects.length
-    };
+    const doc = await Subject.findById(id);
+    if (!doc) return { success: false, message: 'Subject not found' };
+
+    const commonData = { ...updateData };
+    delete commonData.englishName;
+    delete commonData.banglaName;
+    delete commonData.chapters;
+
+    const englishUpdate = { ...commonData, name: updateData.englishName, chapters: (updateData.chapters || []).map(ch => ({ ...ch, name: ch.englishName, englishName: undefined, banglaName: undefined })) };
+    const banglaUpdate = { ...commonData, name: updateData.banglaName, chapters: (updateData.chapters || []).map(ch => ({ ...ch, name: ch.banglaName, englishName: undefined, banglaName: undefined })) };
+
+    await Subject.updateOne({ linkingId: doc.linkingId, version: 'english' }, englishUpdate, { runValidators: true });
+    await Subject.updateOne({ linkingId: doc.linkingId, version: 'bangla' }, banglaUpdate, { runValidators: true });
+
+    return await getSubjectById(id); // Fetch and return merged result
   } catch (error) {
     return { success: false, error: error.message };
   }
 };
 
-export const removeChapterFromSubject = async (id, chapterId) => {
-  try {
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      throw new Error('Invalid Subject ID');
-    }
-    if (!mongoose.Types.ObjectId.isValid(chapterId)) {
-      throw new Error('Invalid Chapter ID');
-    }
-
-    const subject = await Subject.findById(id);
-
-    if (!subject) {
-      throw new Error('Subject not found');
-    }
-
-    // Check if chapter exists in the chapters array
-    const chapterIndex = subject.chapters.findIndex(chap => chap._id.toString() === chapterId);
-
-    if (chapterIndex === -1) {
-      throw new Error('Chapter not found in subject');
-    }
-
-    // Delete all topics in this chapter
-    const topicsToDelete = subject.chapters[chapterIndex].topics;
-    if (topicsToDelete && topicsToDelete.length > 0) {
-      await Topic.deleteMany({ _id: { $in: topicsToDelete } });
-    }
-
-    // Remove the chapter by filtering it out
-    subject.chapters.splice(chapterIndex, 1);
-
-    // Save updated subject
-    await subject.save();
-
-    return { message: 'Chapter removed successfully' };
-
-  } catch (error) {
-    throw new Error(error.message || 'Failed to remove chapter');
-  }
-};
-
-export const editTopic = async (subjectId, chapterIndex, topicIndex, data, files) => {
-  // Start a transaction session
+export const deleteSubject = async (id) => {
   const session = await mongoose.startSession();
-
   try {
-    // Begin the transaction
     await session.startTransaction();
+    const doc = await Subject.findById(id).session(session);
+    if (!doc) throw new Error('Subject not found');
 
-    let editableData = JSON.parse(data);
-
-    const subject = await Subject.findById(subjectId).session(session);
-    if (!subject) {
-      throw new Error('Subject not found');
-    }
-    const chapter = subject.chapters[chapterIndex];
-    if (!chapter) {
-      throw new Error('Chapter not found');
-    }
-    if (!chapter.topics[topicIndex]) {
-      throw new Error('Topic not found');
-    }
-    const topicId = chapter.topics[topicIndex];
-    const topic = await Topic.findById(topicId).session(session);
-    if (!topic) {
-      throw new Error('Topic document not found');
-    }
-
-    // --- 1. DELETE existing embeddings for this topic ---
-    // This happens first within the transaction.
-    await SubjectEmbedding.deleteMany({ topicId: topic._id }, { session });
-
-
-    // --- 2. UPDATE the Topic document with new data ---
+    const subjects = await Subject.find({ linkingId: doc.linkingId }).session(session);
+    const allTopicIds = subjects.flatMap(s => s.chapters.flatMap(c => c.topics));
     
-    // Update text fields
-    topic.englishName = editableData.englishName ?? topic.englishName;
-    topic.banglaName = editableData.banglaName ?? topic.banglaName;
-    // ... (add other fields you want to update)
-    topic.questionTypes = editableData.questionTypes ?? topic.questionTypes;
-
-    // IMPORTANT: Update segments directly
-    if (editableData.segments) {
-      topic.segments = editableData.segments;
+    if (allTopicIds.length > 0) {
+      await Topic.deleteMany({ _id: { $in: allTopicIds } }).session(session); // Hooks on Topic model will handle embedding deletion
     }
-    
-    // --- Image Handling ---
-    // This logic updates the `topic` object in memory before it's saved.
-    if (files && files.length > 0) {
-        for (const image of files) {
-            const imageMetaData = image.fieldname.split('_');
-            const segmentIndex = imageMetaData[1];
-            const imageIndex = imageMetaData[3];
+    await Subject.deleteMany({ linkingId: doc.linkingId }).session(session);
 
-            let imageTitleAndDescription = editableData.segments[segmentIndex]?.images[imageIndex];
-            const newImage = await uploadImage(image);
-
-            const imageData = {
-                url: newImage?.data?.url,
-                title: {
-                    english: imageTitleAndDescription?.title?.english || "",
-                    bangla: imageTitleAndDescription?.title?.bangla || ""
-                },
-                description: {
-                    english: imageTitleAndDescription?.description?.english || "",
-                    bangla: imageTitleAndDescription?.description?.bangla || ""
-                }
-            };
-
-            if (topic.segments[segmentIndex]?.images) {
-                topic.segments[segmentIndex].images[imageIndex] = imageData;
-            }
-        }
-    }
-
-    // Save the updated topic document within the transaction
-    await topic.save({ session });
-
-    // --- 3. CREATE new embeddings from the updated topic data ---
-    const embeddingOperations = [];
-    
-    // Use the now-updated `topic` object as the source of truth
-    for (const segment of topic.segments) {
-      // Re-use the exact same embedding logic from `addTopicToChapter`
-      const englishDataPoints = [
-        subject.englishName,
-        chapter.englishName,
-        topic.englishName,
-        topic.questionTypes?.map(q => q.english).join(" "),
-        segment?.title?.english,
-        segment?.description?.english,
-        segment?.aliases?.english?.join(" "),
-        segment?.aliases?.banglish?.join(' '),
-        segment?.images?.map(img => `${img.title?.english} ${img.description?.english}`).join(" "),
-        segment?.formulas?.map(f => `${f.equation} ${f.derivation?.english} ${f.explanation?.english}`).join(" ")
-      ];
-      const englishText = englishDataPoints.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-
-      const banglaDataPoints = [
-        subject.banglaName,
-        chapter.banglaName,
-        topic.banglaName,
-        topic.questionTypes?.map(q => q.bangla).join(" "),
-        segment?.title?.bangla,
-        segment?.description?.bangla,
-        segment?.aliases?.bangla?.join(" "),
-        segment?.aliases?.banglish?.join(' '),
-        segment?.images?.map(img => `${img.title?.bangla} ${img.description?.bangla}`).join(" "),
-        segment?.formulas?.map(f => `${f.equation} ${f.derivation?.bangla} ${f.explanation?.bangla}`).join(" ")
-      ];
-      const banglaText = banglaDataPoints.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-      
-      const [englishEmbed, banglaEmbed] = await Promise.all([
-         embeddings.embedQuery(englishText),
-         embeddings.embedQuery(banglaText)
-      ]);
-      
-      if (!englishEmbed || !banglaEmbed) {
-        throw new Error('Embedding re-generation failed for one or both languages.');
-      }
-
-      embeddingOperations.push(
-        {
-          subject: { englishName: subject.englishName, banglaName: subject.banglaName },
-          chapter: { englishName: chapter.englishName, banglaName: chapter.banglaName },
-          segmentUniqueKey: segment.uniqueKey,
-          topicId: topic._id,
-          chunkText: englishText,
-          embedding: englishEmbed
-        },
-        {
-          subject: { englishName: subject.englishName, banglaName: subject.banglaName },
-          chapter: { englishName: chapter.englishName, banglaName: chapter.banglaName },
-          topicId: topic._id,
-          chunkText: banglaText,
-          segmentUniqueKey: segment.uniqueKey,
-          embedding: banglaEmbed
-        }
-      );
-    }
-
-    if (embeddingOperations.length > 0) {
-      await SubjectEmbedding.create(embeddingOperations, { session });
-    }
-
-    // If everything is successful, commit the transaction
     await session.commitTransaction();
-    
-    // Fetch the final state outside the transaction for the response
-    const updatedSubject = await Subject.findById(subjectId).populate('chapters.topics');
-    
-    return {
-      success: true,
-      message: 'Topic and its embeddings were updated successfully',
-      data: updatedSubject
-    };
-
+    return { success: true, message: 'Subject and all associated topics deleted successfully.' };
   } catch (error) {
-    // If any error occurs, abort the entire transaction
     await session.abortTransaction();
-    console.error("Topic edit transaction failed:", error);
     return { success: false, error: error.message };
   } finally {
-    // Always end the session
     await session.endSession();
-    // Clean up uploaded files from the server's temp directory
-    await cleanupFiles(files);
   }
 };
 
 export const addTopicToChapter = async (id, chapterIndex, topicData, files) => {
   const session = await mongoose.startSession();
-  
   try {
-    // Start transaction
     await session.startTransaction();
 
-    const subject = await Subject.findById(id).session(session);
+    const subjectDoc = await Subject.findById(id).session(session);
+    if (!subjectDoc) throw new Error('Subject not found');
 
-    if (!subject) {
-      await session.abortTransaction();
-      return { success: false, message: 'Subject not found' };
-    }
+    const subjects = await Subject.find({ linkingId: subjectDoc.linkingId }).session(session);
+    const enSubject = subjects.find(s => s.version === 'english');
+    const bnSubject = subjects.find(s => s.version === 'bangla');
+    if (!enSubject || !bnSubject) throw new Error('Incomplete subject language pair found.');
 
-    if (!subject.chapters[chapterIndex]) {
-      await session.abortTransaction();
-      return { success: false, message: 'Chapter not found' };
-    }
+    const enChapter = enSubject.chapters[chapterIndex];
+    const bnChapter = bnSubject.chapters[chapterIndex];
+    if (!enChapter || !bnChapter) throw new Error('Chapter not found at the specified index.');
+       
+    const parsedData = typeof topicData === "string" ? JSON.parse(topicData) : topicData;
+    const topicLinkingId = new mongoose.Types.ObjectId().toString();
 
-    // Parse topicData
-    let parsedData = typeof topicData === "string" ? JSON.parse(topicData) : topicData;
-    console.log("parsed data", parsedData)
-    const {
-      englishName,
-      banglaName,
-      questionTypes,
-      segments,
-    } = parsedData;
-    // Create new topic document
-    const newTopic = new Topic({
-      subjectId: id,
-      chapterName: {
-        bangla: subject.chapters[chapterIndex].banglaName,
-        english: subject.chapters[chapterIndex].englishName,
-        chapterId: subject.chapters[chapterIndex]._id
-      },
-      englishName,
-      banglaName,
-      questionTypes: questionTypes || [],
-      segments: segments || []
-    });
-
-    // --- Image Handling ---
-    if (files && files.length > 0) {
-      for (const image of files) {
-        try {
-          const imageMetaData = image.fieldname.split('_');
-          const segmentIndex = imageMetaData[1];
-          const imageIndex = imageMetaData[3];
-
-          let imageTitleAndDescription = parsedData.segments[segmentIndex]?.images[imageIndex];
-
-          const newImage = await uploadImage(image);
-
-          const imageData = {
-            url: newImage?.data?.url,
-            title: {
-              english: imageTitleAndDescription?.title?.english || "",
-              bangla: imageTitleAndDescription?.title?.bangla || ""
-            },
-            description: {
-              english: imageTitleAndDescription?.description?.english || "",
-              bangla: imageTitleAndDescription?.description?.bangla || ""
-            }
-          };
-
-          if (newTopic.segments[segmentIndex]) {
-            if (!newTopic.segments[segmentIndex].images) {
-              newTopic.segments[segmentIndex].images = [];
-            }
-            if (newTopic.segments[segmentIndex].images[imageIndex]) {
-              newTopic.segments[segmentIndex].images[imageIndex] = imageData;
-            } else {
-              newTopic.segments[segmentIndex].images.push(imageData);
-            }
-          }
-        } catch (imageError) {
-          console.error('Image upload failed:', imageError);
-          await session.abortTransaction();
-          return { success: false, error: `Image upload failed: ${imageError.message}` };
-        }
-      }
-    }
-
-    // Save the topic within transaction
-    const savedTopic = await newTopic.save({ session });
-
-    // Prepare all embedding data and operations first
-    const embeddingOperations = [];
+    const englishTopicPayload = _transformTopicData(parsedData, 'english');
+    const banglaTopicPayload = _transformTopicData(parsedData, 'bangla');
     
-    for (const segment of segments) {
-      try {
-        // --- INLINED EMBEDDING LOGIC ---
-        // Step 1: Construct the text chunks directly here from data only.
-        const englishDataPoints = [
-          subject.englishName,
-          subject.chapters[chapterIndex].englishName,
-          englishName,
-          questionTypes?.map(q => q.english).join(" "),
-          segment?.title?.english,
-          segment?.description?.english,
-          segment?.aliases?.english?.join(" "),
-          segment?.aliases?.banglish?.join(' '),
-          segment?.images?.map(img => `${img.title?.english} ${img.description?.english}`).join(" "),
-          segment?.formulas?.map(f => `${f.equation} ${f.derivation?.english} ${f.explanation?.english}`).join(" ")
-        ];
-        const englishText = englishDataPoints.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
+    englishTopicPayload.linkingId = topicLinkingId;
+    englishTopicPayload.version = 'english';
+    englishTopicPayload.subjectId = enSubject._id;
+    englishTopicPayload.chapterName = { name: enChapter.name, chapterId: enChapter._id };
 
-        const banglaDataPoints = [
-          subject.banglaName,
-          subject.chapters[chapterIndex].banglaName,
-          banglaName,
-          questionTypes?.map(q => q.bangla).join(" "),
-          segment?.title?.bangla,
-          segment?.description?.bangla,
-          segment?.aliases?.bangla?.join(" "),
-          segment?.aliases?.banglish?.join(' '),
-          segment?.images?.map(img => `${img.title?.bangla} ${img.description?.bangla}`).join(" "),
-          segment?.formulas?.map(f => `${f.equation} ${f.derivation?.bangla} ${f.explanation?.bangla}`).join(" ")
-        ];
-        const banglaText = banglaDataPoints.filter(Boolean).join(" ").replace(/\s+/g, " ").trim();
-        
-        // Step 2: Generate the embeddings directly from the text chunks.
-        const [englishEmbed, banglaEmbed] = await Promise.all([
-           embeddings.embedQuery(englishText),
-           embeddings.embedQuery(banglaText)
-        ]);
-        
-        if (!englishEmbed || !banglaEmbed) {
-          throw new Error('Embedding generation failed for one or both languages.');
+    banglaTopicPayload.linkingId = topicLinkingId;
+    banglaTopicPayload.version = 'bangla';
+    banglaTopicPayload.subjectId = bnSubject._id;
+    banglaTopicPayload.chapterName = { name: bnChapter.name, chapterId: bnChapter._id };
+
+    if (files && files.length > 0) {
+        for (const image of files) {
+            const [_, segmentIndex, __, imageIndex] = image.fieldname.split('_');
+            const newImage = await uploadImage(image);
+            if(newImage?.data?.url) {
+              if (englishTopicPayload.segments[segmentIndex]?.images[imageIndex]) englishTopicPayload.segments[segmentIndex].images[imageIndex].url = newImage.data.url;
+              if (banglaTopicPayload.segments[segmentIndex]?.images[imageIndex]) banglaTopicPayload.segments[segmentIndex].images[imageIndex].url = newImage.data.url;
+            }
         }
+    }
 
-        // Step 3: Prepare the embedding documents for batch creation.
+    const [savedEnTopic, savedBnTopic] = await Topic.create([englishTopicPayload, banglaTopicPayload], { session , ordered: true });
+    
+    const embeddingOperations = [];
+    // UPDATED: Loop through the transformed payloads to create embeddings
+    for (let i = 0; i < englishTopicPayload.segments.length; i++) {
+        const enSegment = englishTopicPayload.segments[i];
+        const bnSegment = banglaTopicPayload.segments[i];
+
+        const englishText = _createEmbeddingChunkText('english', enSubject, enChapter, savedEnTopic, enSegment);
+        const banglaText = _createEmbeddingChunkText('bangla', bnSubject, bnChapter, savedBnTopic, bnSegment);
+       
+        const [englishEmbed, banglaEmbed] = await Promise.all([embeddings.embedQuery(englishText), embeddings.embedQuery(banglaText)]);
+        if (!englishEmbed || !banglaEmbed) throw new Error('Embedding generation failed.');
+          
         embeddingOperations.push(
           {
-            subject: {
-              englishName: subject.englishName,
-              banglaName: subject.banglaName
+            subject: { 
+              englishName: enSubject.name, 
+              banglaName: bnSubject.name 
             },
-            chapter: {
-              englishName: subject.chapters[chapterIndex].englishName,
-              banglaName: subject.chapters[chapterIndex].banglaName
-            },
-            segmentUniqueKey: segment.uniqueKey,
-            topicId: savedTopic._id,
-            chunkText: englishText, // Use the generated text chunk
-            embedding: englishEmbed // Use the generated embedding
+            otherData: JSON.stringify({
+              chapter: { 
+                englishName: enChapter.name, 
+                banglaName: bnChapter.name 
+              },
+              segmentUniqueKey: enSegment.uniqueKey,
+              topicId: savedEnTopic._id
+            }),
+            chunkText: englishText,
+            embedding: englishEmbed
           },
-          {
-            subject: {
-              englishName: subject.englishName,
-              banglaName: subject.banglaName
-            },
-            chapter: {
-              englishName: subject.chapters[chapterIndex].englishName,
-              banglaName: subject.chapters[chapterIndex].banglaName
-            },
-            topicId: savedTopic._id,
-            chunkText: banglaText, // Use the generated text chunk
-            segmentUniqueKey: segment.uniqueKey,
-            embedding: banglaEmbed // Use the generated embedding
+          { 
+            subject: { 
+              englishName: enSubject.name, 
+              banglaName: bnSubject.name 
+            }, 
+            otherData: JSON.stringify({ 
+              chapter: { 
+                englishName: enChapter.name, 
+                banglaName: bnChapter.name 
+              }, 
+              topicId: savedBnTopic._id, 
+              segmentUniqueKey: bnSegment.uniqueKey,
+            }), 
+            chunkText: banglaText, 
+            embedding: banglaEmbed 
           }
         );
-
-      } catch (embeddingError) {
-        console.error('Embedding creation failed for segment:', segment, embeddingError);
-        await session.abortTransaction();
-        return { success: false, error: `Embedding creation failed: ${embeddingError.message}` };
-      }
     }
+    if (embeddingOperations.length > 0) await SubjectEmbedding.create(embeddingOperations, { session , ordered: true });
 
-    // Create all embeddings in batch within transaction
-    if (embeddingOperations.length > 0) {
-      await SubjectEmbedding.create(embeddingOperations, { session, ordered: true });
-    }
+    enSubject.chapters[chapterIndex].topics.push(savedEnTopic._id);
+    bnSubject.chapters[chapterIndex].topics.push(savedBnTopic._id);
+    await enSubject.save({ session });
+    await bnSubject.save({ session });
 
-    // Add topic reference to chapter within transaction
-    const updatedSubject = await Subject.findByIdAndUpdate(
-      id,
-      { $push: { [`chapters.${chapterIndex}.topics`]: savedTopic._id } },
-      { new: true, runValidators: true, session }
-    ).populate('chapters.topics');
-
-    // If everything succeeded, commit the transaction
     await session.commitTransaction();
-
-    console.log('Topic and embeddings created successfully');
-    return { success: true, data: updatedSubject };
-
+    return await getSubjectById(id);
   } catch (error) {
-    // If any error occurs, abort the transaction
-    console.error('Transaction failed:', error);
     await session.abortTransaction();
+    console.error('Add Topic Transaction failed:', error);
     return { success: false, error: error.message };
   } finally {
-    // Always end the session
     await session.endSession();
-    // Clean up uploaded files from the server's temp directory
     await cleanupFiles(files);
   }
 };
+
+export const editTopic = async (subjectId, chapterIndex, topicIndex, data, files) => {
+  const session = await mongoose.startSession();
+
+  try {
+    await session.startTransaction();
+    const baseSubject = await Subject.findById(subjectId).session(session);
+    if (!baseSubject) throw new Error('Subject not found');
+    const subjects = await Subject.find({ linkingId: baseSubject.linkingId }).session(session);
+    const enSubject = subjects.find(s => s.version === 'english');
+    const bnSubject = subjects.find(s => s.version === 'bangla');
+    if (!enSubject || !bnSubject) throw new Error('Subject language pair is incomplete');
+
+    const enTopicId = enSubject.chapters[chapterIndex]?.topics[topicIndex];
+    const bnTopicId = bnSubject.chapters[chapterIndex]?.topics[topicIndex];
+    if (!enTopicId || !bnTopicId) throw new Error('Topic not found at specified index');
+
+    // Delete old embeddings. The new ones will be created from the updated data.
+    await SubjectEmbedding.deleteMany({ 
+        'otherData.topicId': { $in: [enTopicId, bnTopicId] } // A more robust way to query if topicId is inside the JSON string
+    }, { session });
+
+    const parsedData = JSON.parse(data);
+    const englishUpdatePayload = _transformTopicData(parsedData, 'english');
+    const banglaUpdatePayload = _transformTopicData(parsedData, 'bangla');
+   console.log(englishUpdatePayload, banglaUpdatePayload);
+    if (files && files.length > 0) {
+      for (const image of files) {
+          const [_, segmentIndex, __, imageIndex] = image.fieldname.split('_');
+          const newImage = await uploadImage(image);
+          if (newImage?.data?.url) {
+              if (englishUpdatePayload.segments[segmentIndex]?.images[imageIndex]) englishUpdatePayload.segments[segmentIndex].images[imageIndex].url = newImage.data.url;
+              if (banglaUpdatePayload.segments[segmentIndex]?.images[imageIndex]) banglaUpdatePayload.segments[segmentIndex].images[imageIndex].url = newImage.data.url;
+          }
+      }
+    }
+
+    const updatedEnTopic = await Topic.findByIdAndUpdate(enTopicId, englishUpdatePayload, { session, new: true, runValidators: true });
+    const updatedBnTopic = await Topic.findByIdAndUpdate(bnTopicId, banglaUpdatePayload, { session, new: true, runValidators: true });
+    if (!updatedEnTopic || !updatedBnTopic) throw new Error('Failed to update one or both topic documents.');
+
+    const embeddingOperations = [];
+    for (let i = 0; i < updatedEnTopic.segments.length; i++) {
+      console.log("true", updatedEnTopic.segments[i], updatedBnTopic.segments[i])
+        const enSegment = updatedEnTopic.segments[i];
+        const bnSegment = updatedBnTopic.segments[i];
+        const enChapter = enSubject.chapters[chapterIndex];
+        const bnChapter = bnSubject.chapters[chapterIndex];
+      console.log(" unique key:,",enSegment)
+        // UPDATED: Use the new helper function for comprehensive chunk text
+        const englishText = _createEmbeddingChunkText('english', enSubject, enChapter, updatedEnTopic, enSegment);
+        const banglaText = _createEmbeddingChunkText('bangla', bnSubject, bnChapter, updatedBnTopic, bnSegment);
+        
+        const [englishEmbed, banglaEmbed] = await Promise.all([embeddings.embedQuery(englishText), embeddings.embedQuery(banglaText)]);
+        if (!englishEmbed || !banglaEmbed) throw new Error('Embedding re-generation failed.');
+
+        embeddingOperations.push(
+            {
+                subject: { 
+                  englishName: enSubject.name, 
+                  banglaName: bnSubject.name 
+                },
+                otherData: JSON.stringify({
+                  chapter: { 
+                    englishName: enChapter.name, 
+                    banglaName: bnChapter.name 
+                  },
+                  segmentUniqueKey: enSegment.uniqueKey,
+                  topicId: updatedEnTopic._id
+                }),
+                chunkText: englishText,
+                embedding: englishEmbed
+            },
+            { 
+                subject: { 
+                  englishName: enSubject.name, 
+                  banglaName: bnSubject.name 
+                }, 
+                otherData: JSON.stringify({ 
+                  chapter: { 
+                    englishName: enChapter.name, 
+                    banglaName: bnChapter.name 
+                  }, 
+                  topicId: updatedBnTopic._id, 
+                  segmentUniqueKey: bnSegment.uniqueKey
+                }), 
+                chunkText: banglaText, 
+                embedding: banglaEmbed 
+            }
+        );
+    }
+    if (embeddingOperations.length > 0) {
+        await SubjectEmbedding.create(embeddingOperations, { session , ordered: true });
+    }
+
+    await session.commitTransaction();
+    return await getSubjectById(subjectId);
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Topic edit transaction failed:", error);
+    return { success: false, error: error.message };
+  } finally {
+    await session.endSession();
+    await cleanupFiles(files);
+  }
+};
+
+
+export const removeChapterFromSubject = async (id, chapterId) => {
+  const session = await mongoose.startSession();
+  try {
+    await session.startTransaction();
+
+    const subjectDoc = await Subject.findById(id).session(session);
+    if (!subjectDoc) throw new Error('Subject not found');
+
+    const subjects = await Subject.find({ linkingId: subjectDoc.linkingId }).session(session);
+    const enSubject = subjects.find(s => s.version === 'english');
+    const bnSubject = subjects.find(s => s.version === 'bangla');
+    if (!enSubject || !bnSubject) throw new Error('Subject pair not found');
+
+    const chapterIndex = enSubject.chapters.findIndex(chap => chap._id.toString() === chapterId);
+    if (chapterIndex === -1) throw new Error('Chapter not found in subject');
+
+    const enTopicsToDelete = enSubject.chapters[chapterIndex].topics;
+    const bnTopicsToDelete = bnSubject.chapters[chapterIndex].topics;
+    const allTopicsToDelete = [...new Set([...enTopicsToDelete, ...bnTopicsToDelete])]; // Combine and unique
+
+    if (allTopicsToDelete.length > 0) {
+      await Topic.deleteMany({ _id: { $in: allTopicsToDelete } }).session(session);
+    }
+
+    enSubject.chapters.splice(chapterIndex, 1);
+    bnSubject.chapters.splice(chapterIndex, 1);
+    await enSubject.save({ session });
+    await bnSubject.save({ session });
+
+    await session.commitTransaction();
+    return { success: true, message: 'Chapter removed successfully' };
+  } catch (error) {
+    await session.abortTransaction();
+    return { success: false, error: error.message };
+  } finally {
+    await session.endSession();
+  }
+};
+
+
+export const removeTopicFromChapter = async (id, chapterIndex, topicIndex) => {
+  const session = await mongoose.startSession();
+  try {
+    await session.startTransaction();
+
+    const subjectDoc = await Subject.findById(id).session(session);
+    if (!subjectDoc) {
+      throw new Error('Subject not found');
+    }
+
+    const subjects = await Subject.find({ linkingId: subjectDoc.linkingId }).session(session);
+    const enSubject = subjects.find(s => s.version === 'english');
+    const bnSubject = subjects.find(s => s.version === 'bangla');
+
+    if (!enSubject || !bnSubject) {
+      throw new Error('Subject language pair not found');
+    }
+
+    const enChapter = enSubject.chapters[chapterIndex];
+    const bnChapter = bnSubject.chapters[chapterIndex];
+
+    if (!enChapter || !bnChapter) {
+      throw new Error('Chapter not found at the specified index');
+    }
+
+    const enTopicId = enChapter.topics[topicIndex];
+    const bnTopicId = bnChapter.topics[topicIndex];
+
+    if (!enTopicId || !bnTopicId) {
+      throw new Error('Topic not found at the specified index');
+    }
+
+    const allTopicIdsToDelete = [enTopicId, bnTopicId];
+
+    await Topic.deleteMany({ _id: { $in: allTopicIdsToDelete } }).session(session);
+
+    enSubject.chapters[chapterIndex].topics.splice(topicIndex, 1);
+    bnSubject.chapters[chapterIndex].topics.splice(topicIndex, 1);
+
+    await enSubject.save({ session });
+    await bnSubject.save({ session });
+
+    await session.commitTransaction();
+
+    return { success: true, message: 'Topic and its embeddings removed successfully.' };
+  } catch (error) {
+    await session.abortTransaction();
+    console.error("Remove Topic Transaction failed:", error);
+    return { success: false, error: error.message };
+  } finally {
+    await session.endSession();
+  }
+};
+// --- Untouched/Simple functions that still work or were not provided ---
+export const getSubjectTopicsById = async (id) => {
+    const result = await getSubjectById(id);
+    if (!result.success) return result;
+    const subject = result.data;
+    const allTopics = subject.chapters.reduce((topics, chapter) => [...topics, ...chapter.topics], []);
+    return { success: true, data: { subjectId: subject._id, subjectName: subject.englishName, topics: allTopics } };
+};
+
+export const getSubjectChaptersById = async (id) => {
+    const result = await getSubjectById(id);
+    if (!result.success) return result;
+    const subject = result.data;
+    return { success: true, data: { subjectId: subject._id, subjectName: { english: subject.englishName, bangla: subject.banglaName }, chapters: subject.chapters } };
+};
+
+export const getSubjectsByLevel = async (level) => await _findAndMergeSubjects({ level });
+export const getSubjectsByGroup = async (group) => await _findAndMergeSubjects({ group });
+export const recreateAllTopicEmbeddings = async () => {
+  console.log("--- Starting Full Re-creation of Topic Embeddings ---");
+  let stats = {
+    subjectsProcessed: 0,
+    topicsProcessed: 0,
+    embeddingsCreated: 0,
+    warnings: [],
+  };
+
+  try {
+    console.log("Step 1/5: Deleting all existing topic embeddings...");
+    const { deletedCount } = await SubjectEmbedding.deleteMany({});
+    console.log(`Deletion complete. Removed ${deletedCount} old embeddings.`);
+
+    console.log("Step 2/5: Fetching all subjects with populated topics...");
+    const allDocs = await Subject.find({}).populate({
+      path: 'chapters.topics',
+      model: 'Topic'
+    });
+    if (allDocs.length === 0) {
+      console.log("No subjects found in the database. Exiting.");
+      return { success: true, message: "No subjects found to process.", data: stats };
+    }
+    console.log(`Found ${allDocs.length} total subject documents.`);
+
+    console.log("Step 3/5: Grouping subjects by language pairs...");
+    const groupedSubjects = allDocs.reduce((acc, doc) => {
+      if (!acc[doc.linkingId]) acc[doc.linkingId] = {};
+      acc[doc.linkingId][doc.version] = doc;
+      return acc;
+    }, {});
+    console.log(`Grouped into ${Object.keys(groupedSubjects).length} unique subjects.`);
+
+    const newEmbeddings = [];
+
+    console.log("Step 4/5: Processing pairs and generating new embeddings...");
+    for (const linkingId in groupedSubjects) {
+      const pair = groupedSubjects[linkingId];
+      const enSubject = pair.english;
+      const bnSubject = pair.bangla;
+
+      if (!enSubject || !bnSubject) {
+        const warningMsg = `Warning: Incomplete subject pair for linkingId ${linkingId}. Skipping.`;
+        console.warn(warningMsg);
+        stats.warnings.push(warningMsg);
+        continue;
+      }
+      
+      console.log(` -> Processing Subject: ${enSubject.name}`);
+      stats.subjectsProcessed++;
+
+      for (let i = 0; i < enSubject.chapters.length; i++) {
+        const enChapter = enSubject.chapters[i];
+        const bnChapter = bnSubject.chapters[i];
+        
+        if (!enChapter || !bnChapter) {
+           const warningMsg = `Warning: Chapter mismatch for subject ${enSubject.name} at index ${i}. Skipping chapter.`;
+           console.warn(warningMsg);
+           stats.warnings.push(warningMsg);
+           continue;
+        }
+
+        for (let j = 0; j < enChapter.topics.length; j++) {
+          const enTopic = enChapter.topics[j];
+          const bnTopic = bnChapter.topics[j];
+
+          if (!enTopic || !bnTopic || !enTopic.segments || !bnTopic.segments) {
+            const topicId = enTopic?._id || bnTopic?._id || 'N/A';
+            const warningMsg = `Warning: Incomplete or malformed topic data for topicId ~${topicId}. Skipping topic.`;
+            console.warn(warningMsg);
+            stats.warnings.push(warningMsg);
+            continue;
+          }
+          stats.topicsProcessed += 2; 
+
+          for (let k = 0; k < enTopic.segments.length; k++) {
+            const enSegment = enTopic.segments[k];
+            const bnSegment = bnTopic.segments[k];
+
+            if(!enSegment || !bnSegment){
+                continue;
+            }
+            
+            // UPDATED: Use the new helper function for comprehensive chunk text
+            const englishText = _createEmbeddingChunkText('english', enSubject, enChapter, enTopic, enSegment);
+            const banglaText = _createEmbeddingChunkText('bangla', bnSubject, bnChapter, bnTopic, bnSegment);
+            
+            const [englishEmbed, banglaEmbed] = await Promise.all([
+                embeddings.embedQuery(englishText), 
+                embeddings.embedQuery(banglaText)
+            ]);
+
+            if (!englishEmbed || !banglaEmbed) {
+                const warningMsg = `Warning: Embedding generation failed for segment ${enSegment.uniqueKey} in topic ${enTopic.name}. Skipping segment.`;
+                console.error(warningMsg);
+                stats.warnings.push(warningMsg);
+                continue;
+            }
+
+            const commonData = {
+              subject: { englishName: enSubject.name, banglaName: bnSubject.name },
+              otherData: JSON.stringify({
+                  chapter: { englishName: enChapter.name, banglaName: bnChapter.name }
+              })
+            };
+
+            newEmbeddings.push({
+              ...commonData,
+              otherData: JSON.stringify({ ...JSON.parse(commonData.otherData), segmentUniqueKey: enSegment.uniqueKey, topicId: enTopic._id }),
+              chunkText: englishText,
+              embedding: englishEmbed,
+            });
+
+            newEmbeddings.push({
+              ...commonData,
+              otherData: JSON.stringify({ ...JSON.parse(commonData.otherData), segmentUniqueKey: bnSegment.uniqueKey, topicId: bnTopic._id }),
+              chunkText: banglaText,
+              embedding: banglaEmbed,
+            });
+          }
+        }
+      }
+    }
+    stats.embeddingsCreated = newEmbeddings.length;
+
+    console.log(`Step 5/5: Inserting ${newEmbeddings.length} new embeddings into the database...`);
+    if (newEmbeddings.length > 0) {
+      await SubjectEmbedding.insertMany(newEmbeddings, { ordered: false });
+    }
+    console.log("--- Embedding Recreation Process Finished Successfully! ---");
+
+    return {
+      success: true,
+      message: "All topic embeddings have been recreated successfully.",
+      data: stats,
+    };
+  } catch (error) {
+    console.error("--- An error occurred during embedding recreation ---");
+    console.error(error);
+    return {
+      success: false,
+      error: error.message,
+      data: stats,
+    };
+  }
+};
+export const deleteAll = async () => {
+  const s= await Subject.deleteMany()
+ const i = await Topic.deleteMany()
+ return i
+}

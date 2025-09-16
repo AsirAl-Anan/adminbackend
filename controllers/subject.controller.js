@@ -249,6 +249,7 @@ export const addChapter = async (req, res) => {
 // Remove topic from specific chapter (by index)
 export const removeTopicFromChapter = async (req, res) => {
   try {
+    
     const { id, chapterIndex, topicIndex } = req.params;
     const result = await subjectService.removeTopicFromChapter(id, chapterIndex, topicIndex);
     
