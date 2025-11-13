@@ -1,0 +1,319 @@
+{
+  "hscCommerceSubjects": [
+    {
+      "BanglaFirstPaper": {
+        "গদ্য (Prose)": [
+          "অপরিচিতা",
+          "বিলাসী",
+          "আমার পথ",
+          "মাসি-পিসি",
+          "বায়ান্নর দিনগুলো"
+        ],
+        "পদ্য (Poetry)": [
+          "সোনার তরী",
+          "বিদ্রোহী",
+          "ঐকতান",
+          "আঠারো বছর বয়স",
+          "ফেব্রুয়ারি ১৯৬৯"
+        ],
+        "উপন্যাস (Novel)": [
+          "লালসালু - মূলভাব, চরিত্র, ঘটনা, প্রতীকী অর্থ"
+        ],
+        "নাটক (Drama)": [
+          "সিরাজউদ্দৌলা - মূলভাব, চরিত্র, ঘটনা, ঐতিহাসিক প্রেক্ষাপট"
+        ]
+      }
+    },
+    {
+      "BanglaSecondPaper": {
+        "ব্যাকরণ (Grammar)": [
+          "বাংলা উচ্চারণের নিয়ম",
+          "বাংলা বানানের নিয়ম",
+          "বাংলা ভাষার ব্যাকরণিক শব্দশ্রেণি",
+          "বাংলা শব্দগঠন (উপসর্গ, প্রত্যয়, সমাস)",
+          "বাক্যতত্ত্ব",
+          "বাংলা ভাষার অপপ্রয়োগ ও শুদ্ধ প্রয়োগ"
+        ],
+        "নির্মিতি (Composition)": [
+          "দিনলিপি লিখন",
+          "অভিজ্ঞতা বর্ণনা",
+          "ভাষণ লিখন",
+          "আবেদনপত্র/স্মারকলিপি",
+          "প্রতিবেদন লিখন",
+          "সারাংশ/সারমর্ম",
+          "ভাবসম্প্রসারণ",
+          "প্রবন্ধ রচনা"
+        ]
+      }
+    },
+    {
+      "EnglishFirstPaper": {
+        "ReadingTest": [
+          "Unseen Passage (Information Transfer, Summarizing, Cloze Test without Clues)",
+          "Seen Passage (MCQ, Answering Questions, Gap Filling with Clues)"
+        ],
+        "WritingTest": [
+          "Paragraph Writing (Descriptive, Narrative, Argumentative)",
+          "Story Writing",
+          "Email Writing",
+          "Formal Letter Writing (Complaint, Order, Application)",
+          "Report Writing",
+          "Composition Writing"
+        ]
+      }
+    },
+    {
+      "EnglishSecondPaper": {
+        "Grammar": [
+          "Articles",
+          "Prepositions",
+          "Right Forms of Verbs",
+          "Narration",
+          "Transformation of Sentences",
+          "Completing Sentences",
+          "Use of Connectors",
+          "Pronoun Reference",
+          "Modifiers",
+          "Synonyms and Antonyms",
+          "Punctuation"
+        ],
+        "Composition": [
+          "CV Writing with Cover Letter",
+          "Formal Letter Writing",
+          "Paragraph Writing",
+          "Composition Writing"
+        ]
+      }
+    },
+    {
+      "AccountingFirstPaper": {
+        "AccountingPrinciples": [
+          "Conceptual Framework",
+          "Accounting Cycle"
+        ],
+        "RecordingTransactions": [
+          "Journal Entries",
+          "Ledger Accounts"
+        ],
+        "AdjustingEntriesAndFinancialStatements": [
+          "Accruals and Deferrals",
+          "Income Statement",
+          "Balance Sheet"
+        ],
+        "CashAndReceivables": [
+          "Bank Reconciliation",
+          "Bad Debts"
+        ],
+        "Inventory": [
+          "FIFO, LIFO, Weighted Average",
+          "Inventory Valuation"
+        ]
+      }
+    },
+    {
+      "AccountingSecondPaper": {
+        "PartnershipAccounting": [
+          "Formation",
+          "Admission",
+          "Retirement",
+          "Dissolution"
+        ],
+        "CompanyAccounting": [
+          "Share Capital",
+          "Debentures",
+          "Dividend"
+        ],
+        "CostAccounting": [
+          "Cost Concepts",
+          "Job Order Costing",
+          "Process Costing"
+        ],
+        "ManagementAccounting": [
+          "Budgeting",
+          "Variance Analysis",
+          "Capital Budgeting"
+        ],
+        "AnalysisOfFinancialStatements": [
+          "Ratio Analysis",
+          "Cash Flow Statement"
+        ]
+      }
+    },
+    {
+      "BusinessOrganizationAndManagementFirstPaper": {
+        "ConceptOfBusinessOrganization": [
+          "Nature and Scope",
+          "Objectives"
+        ],
+        "FormsOfBusinessOrganization": [
+          "Sole Proprietorship",
+          "Partnership",
+          "Company",
+          "Cooperative"
+        ],
+        "BusinessEnvironment": [
+          "Internal and External Factors"
+        ],
+        "EntrepreneurshipDevelopment": [
+          "Role of Entrepreneur",
+          "Challenges"
+        ],
+        "BusinessEthicsAndSocialResponsibility": [
+          "Ethical Dilemmas",
+          "CSR Initiatives"
+        ]
+      }
+    },
+    {
+      "BusinessOrganizationAndManagementSecondPaper": {
+        "ConceptOfManagement": [
+          "Definition",
+          "Functions (Planning, Organizing, Staffing, Directing, Controlling)"
+        ],
+        "PrinciplesOfManagement": [
+          "Fayol's Principles",
+          "Taylor's Scientific Management"
+        ],
+        "Motivation": [
+          "Theories of Motivation (Maslow, Herzberg)",
+          "Motivational Techniques"
+        ],
+        "Leadership": [
+          "Leadership Styles",
+          "Qualities of a Leader"
+        ],
+        "HumanResourceManagement": [
+          "Recruitment",
+          "Selection",
+          "Training",
+          "Performance Appraisal"
+        ],
+        "MarketingManagement": [
+          "Marketing Mix",
+          "Market Segmentation"
+        ]
+      }
+    },
+    {
+      "FinanceBankingAndInsuranceFirstPaper": {
+        "ConceptOfFinance": [
+          "Role of Finance",
+          "Financial Markets"
+        ],
+        "SourcesOfFinance": [
+          "Equity",
+          "Debt",
+          "Retained Earnings"
+        ],
+        "CapitalBudgeting": [
+          "Payback Period",
+          "NPV",
+          "IRR"
+        ],
+        "WorkingCapitalManagement": [
+          "Cash Management",
+          "Receivables Management",
+          "Inventory Management"
+        ],
+        "BankingSystem": [
+          "Commercial Banks",
+          "Central Bank",
+          "Specialized Banks"
+        ]
+      }
+    },
+    {
+      "FinanceBankingAndInsuranceSecondPaper": {
+        "Insurance": [
+          "Principles of Insurance",
+          "Types of Insurance (Life, General)"
+        ],
+        "RiskManagement": [
+          "Identification",
+          "Assessment",
+          "Mitigation"
+        ],
+        "FinancialInstitutions": [
+          "Non-Banking Financial Institutions",
+          "Microfinance"
+        ],
+        "InternationalFinance": [
+          "Foreign Exchange Market",
+          "Balance of Payments"
+        ],
+        "FinancialRegulationAndEthics": [
+          "Regulatory Bodies",
+          "Ethical Issues in Finance"
+        ]
+      }
+    },
+    {
+      "Economics": {
+        "IntroductionToEconomics": [
+          "Scarcity",
+          "Choice",
+          "Opportunity Cost"
+        ],
+        "DemandAndSupply": [
+          "Law of Demand",
+          "Law of Supply",
+          "Market Equilibrium"
+        ],
+        "ProductionAndCost": [
+          "Production Function",
+          "Short-run and Long-run Costs"
+        ],
+        "MarketStructures": [
+          "Perfect Competition",
+          "Monopoly",
+          "Oligopoly",
+          "Monopolistic Competition"
+        ],
+        "NationalIncome": [
+          "GDP",
+          "GNP",
+          "Methods of Measurement"
+        ],
+        "MoneyAndInflation": [
+          "Functions of Money",
+          "Causes and Effects of Inflation"
+        ],
+        "PublicFinance": [
+          "Government Revenue",
+          "Government Expenditure",
+          "Budget"
+        ],
+        "InternationalTrade": [
+          "Comparative Advantage",
+          "Trade Barriers"
+        ]
+      }
+    },
+    {
+      "InformationAndCommunicationTechnologyICT": {
+        "InformationAndCommunicationTechnologyAndOurBangladesh": [
+          "ICT in daily life",
+          "Digital Bangladesh"
+        ],
+        "ComputerAndComputerUserSecurity": [
+          "Malware",
+          "Cybercrime"
+        ],
+        "MyEducationAndInternet": [
+          "Online learning resources"
+        ],
+        "MyLifeAndICT": [
+          "Impact of ICT on society"
+        ],
+        "UseOfMultimedia": [
+          "Graphics",
+          "Animation"
+        ],
+        "Database": [
+          "Introduction to Database",
+          "Data types"
+        ]
+      }
+    }
+  ]
+}

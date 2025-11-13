@@ -1,0 +1,274 @@
+{
+  "hscScienceSubjects": [
+    {
+      "BanglaFirstPaper": {
+        "গদ্য": [
+          "অপরিচিতা",
+          "বিলাসী",
+          "আমার পথ",
+          "মাসি-পিসি",
+          "বায়ান্নর দিনগুলো"
+        ],
+        "পদ্য": [
+          "সোনার তরী",
+          "বিদ্রোহী",
+          "ঐকতান",
+          "আঠারো বছর বয়স",
+          "ফেব্রুয়ারি ১৯৬৯"
+        ],
+        "উপন্যাস": [
+          "লালসালু - মূলভাব, চরিত্র, ঘটনা, প্রতীকী অর্থ"
+        ],
+        "নাটক": [
+          "সিরাজউদ্দৌলা - মূলভাব, চরিত্র, ঘটনা, ঐতিহাসিক প্রেক্ষাপট"
+        ]
+      }
+    },
+    {
+      "BanglaSecondPaper": {
+        "ব্যাকরণ (Grammar)": [
+          "বাংলা উচ্চারণের নিয়ম",
+          "বাংলা বানানের নিয়ম",
+          "বাংলা ভাষার ব্যাকরণিক শব্দশ্রেণি",
+          "বাংলা শব্দগঠন (উপসর্গ, প্রত্যয়, সমাস)",
+          "বাক্যতত্ত্ব",
+          "বাংলা ভাষার অপপ্রয়োগ ও শুদ্ধ প্রয়োগ"
+        ],
+        "নির্মিতি (Composition)": [
+          "দিনলিপি লিখন",
+          "অভিজ্ঞতা বর্ণনা",
+          "ভাষণ লিখন",
+          "আবেদনপত্র/স্মারকলিপি",
+          "প্রতিবেদন লিখন",
+          "সারাংশ/সারমর্ম",
+          "ভাবসম্প্রসারণ",
+          "প্রবন্ধ রচনা"
+        ]
+      }
+    },
+    {
+      "EnglishFirstPaper": {
+        "ReadingTest": [
+          "Unseen Passage (Information Transfer, Summarizing, Cloze Test without Clues)",
+          "Seen Passage (MCQ, Answering Questions, Gap Filling with Clues)"
+        ],
+        "WritingTest": [
+          "Paragraph Writing (Descriptive, Narrative, Argumentative)",
+          "Story Writing",
+          "Email Writing",
+          "Formal Letter Writing (Complaint, Order, Application)",
+          "Report Writing",
+          "Composition Writing"
+        ]
+      }
+    },
+    {
+      "EnglishSecondPaper": {
+        "Grammar": [
+          "Articles",
+          "Prepositions",
+          "Right Forms of Verbs",
+          "Narration",
+          "Transformation of Sentences",
+          "Completing Sentences",
+          "Use of Connectors",
+          "Pronoun Reference",
+          "Modifiers",
+          "Synonyms and Antonyms",
+          "Punctuation"
+        ],
+        "Composition": [
+          "CV Writing with Cover Letter",
+          "Formal Letter Writing",
+          "Paragraph Writing",
+          "Composition Writing"
+        ]
+      }
+    },
+    {
+      "PhysicsFirstPaper": {
+        "PhysicalWorldAndMeasurement": [
+          "Units and Dimensions",
+          "Error Analysis"
+        ],
+        "Vectors": [
+          "Vector Addition",
+          "Dot Product",
+          "Cross Product"
+        ],
+        "Dynamics": [
+          "Newton's Laws of Motion",
+          "Work, Power, Energy",
+          "Conservation Laws"
+        ],
+        "CircularMotionAndGravitation": [
+          "Centripetal Force",
+          "Kepler's Laws"
+        ],
+        "PropertiesOfMatter": [
+          "Elasticity",
+          "Surface Tension",
+          "Viscosity"
+        ],
+        "Oscillations": [
+          "Simple Harmonic Motion (SHM)",
+          "Damped Oscillations"
+        ],
+        "Waves": [
+          "Types of Waves",
+          "Sound Waves",
+          "Doppler Effect"
+        ]
+      }
+    },
+    {
+      "PhysicsSecondPaper": {
+        "HeatAndThermodynamics": [
+          "Zeroth Law",
+          "First Law of Thermodynamics",
+          "Carnot Cycle"
+        ],
+        "Electrostatics": [
+          "Coulomb's Law",
+          "Electric Field",
+          "Capacitance"
+        ],
+        "CurrentElectricity": [
+          "Ohm's Law",
+          "Kirchhoff's Laws",
+          "AC Circuits"
+        ],
+        "MagneticEffectsOfCurrentAndMagnetism": [
+          "Biot-Savart Law",
+          "Ampere's Law",
+          "Faraday's Law"
+        ],
+        "Optics": [
+          "Interference",
+          "Diffraction",
+          "Polarization"
+        ],
+        "ModernPhysics": [
+          "Photoelectric Effect",
+          "Bohr's Model",
+          "Radioactivity"
+        ],
+        "SemiconductorsAndElectronics": [
+          "PN Junction Diode",
+          "Transistors"
+        ]
+      }
+    },
+    {
+      "ChemistryFirstPaper": {
+        "QualitativeChemistry": [
+          "Atomic Structure",
+          "Quantum Numbers",
+          "Spectroscopy"
+        ],
+        "PeriodicTableAndChemicalBonding": [
+          "Periodic Properties",
+          "Hybridization",
+          "Molecular Orbital Theory"
+        ],
+        "QuantitativeChemistry": [
+          "Stoichiometry",
+          "Limiting Reactant",
+          "Titration"
+        ],
+        "ChemicalChanges": [
+          "Reaction Rate",
+          "Chemical Equilibrium",
+          "pH and Buffers"
+        ],
+        "WorkingWithChemistry": [
+          "Laboratory Safety",
+          "Volumetric Analysis"
+        ]
+      }
+    },
+    {
+      "ChemistrySecondPaper": {
+        "OrganicChemistry": [
+          "Nomenclature",
+          "Isomerism",
+          "Reactions of Alkanes",
+          "Alkenes",
+          "Alkynes",
+          "Aromatic Compounds"
+        ],
+        "EnvironmentalChemistry": [
+          "Air Pollution",
+          "Water Pollution",
+          "Soil Pollution"
+        ],
+        "Electrochemistry": [
+          "Electrochemical Cells",
+          "Electrolysis"
+        ],
+        "IndustrialChemistry": [
+          "Production of Fertilizers",
+          "Glass",
+          "Cement"
+        ],
+        "Biochemistry": [
+          "Carbohydrates",
+          "Proteins",
+          "Lipids"
+        ]
+      }
+    },
+    {
+      "BiologyFirstPaperBotany": {
+        "CellAndItsStructure": [
+          "Cell Organelles",
+          "Cell Division"
+        ],
+        "PlantClassification": [
+          "Algae",
+          "Fungi",
+          "Bryophytes",
+          "Pteridophytes",
+          "Gymnosperms",
+          "Angiosperms"
+        ],
+        "PlantPhysiology": [
+          "Photosynthesis",
+          "Respiration",
+          "Transpiration"
+        ],
+        "PlantReproduction": [
+          "Sexual Reproduction in Plants",
+          "Asexual Reproduction"
+        ],
+        "Biotechnology": [
+          "Genetic Engineering",
+          "Tissue Culture"
+        ]
+      }
+    },
+    {
+      "BiologySecondPaperZoology": {
+        "ClassificationOfAnimals": [
+          "Invertebrates",
+          "Vertebrates"
+        ],
+        "HumanPhysiology": [
+          "Digestive System",
+          "Respiratory System",
+          "Circulatory System",
+          "Nervous System",
+          "Excretory System"
+        ],
+        "ReproductionAndDevelopment": [
+          "Human Reproduction",
+          "Embryonic Development"
+        ],
+        "GeneticsAndEvolution": [
+          "Genetics",
+          "Evolution"
+        ]
+      }
+    }
+  ]
+}

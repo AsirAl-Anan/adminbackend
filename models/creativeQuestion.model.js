@@ -11,110 +11,108 @@ const GROUPS = ['science', 'arts', 'commerce'];
 const LEVELS = ['SSC', 'HSC'];
 const VERSIONS = ['Bangla', 'English'];
 const DIFFICULTIES = ['easy', 'medium', 'hard'];
+const textSchema = new mongoose.Schema({
+  english: { type: String },
+  bangla: { type: String },
+
+})
+const stemSchema = new mongoose.Schema({
+  text:textSchema,
+  images: [
+    {
+      url: { type: String, required: true },
+      caption: { en: String, bn: String },
+      order: Number,
+    },
+  ],
+  order:{
+    type: Number,
+     required: true,
+  }
+})
+const partSchema = new mongoose.Schema({
+  question:[
+     {
+   text:textSchema,
+    images: [
+      {
+        url: { type: String, required: true },
+        caption: { en: String, bn: String },
+        order: Number,
+      },
+    ],
+    order:{
+      type: Number,
+       required: true,
+    }
+  },
+  ],
+  marks: { type: Number, required: true },
+  chapter:{
+    chapterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chapter' },
+  },
+   topics:[
+    {
+      topicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic' },
+      weight:{
+        type: Number,
+        default: 1
+      }
+    }
+   ],
+   types:{ //types are stored in topic model
+    type: [String],
+    default: []
+   },
+  answer: [{
+    text:textSchema,
+    images: [
+      {
+        url: { type: String, required: true },
+        caption: { en: String, bn: String },
+        order: Number,
+      },
+    ],
+    order:{
+      type: Number,
+       required: true,
+    }
+  },]
+
+},{ timestamps: true }
+);
+const sourceSchema = new mongoose.Schema({
+  sourceType: { type: String, enum: ['BOARD', 'AI', "INSTITUTION"], required: true },
+  source:{ type: String, required: true }, //can be "Dhaka Board", "AI", "XYZ Institution", etc
+  year: { type: Number, required: true, min: 2000, max: 2099 },
+  examType: { type: String }, // e.g., "Midterm", "Final", etc. Optional for BOARD and AI
+  level: { type: String, enum: LEVELS, required: true }, 
+  group: { type: String, enum: GROUPS , required: true },
+  subject: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
+  mainChapter:{
+    chapterId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chapter' },
+  },
+});
 
 const creativeQuestionSchema = new mongoose.Schema({
-    linkingId: {  
-    type: String,
-    required: true,
-  },
+   
 
-  stem: { type: String, required: true },
-  stemImage: { type: String }, // optional image for question stem
-
-  // Question options
-  a: { type: String, required: true },
-  aAnswer: { type: String, required: true },
-
-  b: { type: String, required: true },
-  bAnswer: { type: String, required: true },
-
-  c: { type: String, required: true },
-  cAnswer: { type: String, required: true },
-  cQuestionType:{ type: String, required: true },
-  dQuestionType:{ type: String, required: true },
-  cAnswerImage: { type: String }, // optional
-  cTopic: {
-    topicId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Topic' }, 
-    englishName: { type: String, required: true },
-    banglaName: { type: String, required: true },
-  },
-  cType: { type: String }, // optional sub-type
-
-  d: { type: String }, // optional
-  dAnswer: { type: String }, // required only if 'd' exists
-  dAnswerImage: { type: String }, // optional
-  dTopic: {
-    topicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic' }, // required only if 'd' exists
-    englishName: { type: String },
-    banglaName: { type: String },
-  },
-  dType: { type: String }, // optional sub-type
-
-  group: { type: String, enum: GROUPS, required: true },
-  board: { type: String, enum: BOARDS },
-  institution: { name:{type: String}, examType: {type: String} }, // optional
-  year: { type: Number, required: true, min: 2000, max: 2099 },
-
-  subject: { type: mongoose.Schema.Types.ObjectId, ref: 'Subject', required: true },
-  level: { type: String, enum: LEVELS, required: true },
-  version: { type: String, enum: VERSIONS, required: true },
-
-  chapter: {
-    chapterId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Chapter' },
-    englishName: { type: String, required: true },
-    banglaName: { type: String, required: true },
-  }
+  stem: stemSchema, // Array of stems for the question
+  source: sourceSchema, // Source information
+  c:partSchema,
+  d:partSchema,
+  a:partSchema,
+  b:partSchema,
 
 }, { timestamps: true });
 
-// Add a pre-save hook to ensure dTopic, dSubTopic and dAnswer are required if 'd' is provided
-// creativeQuestionSchema.pre('save', function (next) {
-//   if (this.d) {
-//     if (!this.dTopic || !this.dTopic.topicId) {
-//       return next(new Error("dTopic.topicId is required when 'd' field is provided."));
-//     }
-//     if (!this.dAnswer) {
-//       return next(new Error("dAnswer is required when 'd' field is provided."));
-//     }
-//     // dSubTopic is optional, so no check needed for its existence or fields
-//   }
-//   next();
-// });
 
-// // Add a pre-validate hook to ensure dTopic and cTopic details are provided
-// creativeQuestionSchema.pre('validate', function (next) {
-//   // Validate cTopic always
-//   if (!this.cTopic || !this.cTopic.topicId || !this.cTopic.englishName || !this.cTopic.banglaName) {
-//     return next(new Error("cTopic.topicId, cTopic.englishName, and cTopic.banglaName are required."));
-//   }
-
-//   // Validate dTopic details if 'd' exists
-//   if (this.d && (!this.dTopic || !this.dTopic.englishName || !this.dTopic.banglaName)) {
-//     return next(new Error("dTopic englishName and banglaName are required when 'd' field is provided."));
-//   }
-
-//   // Validate cSubTopic details if cSubTopic exists (i.e., topicId is present)
-//   if (this.cSubTopic && this.cSubTopic.topicId) {
-//     if (!this.cSubTopic.englishName || !this.cSubTopic.banglaName) {
-//       return next(new Error("If cSubTopic.topicId is provided, cSubTopic.englishName and cSubTopic.banglaName are required."));
-//     }
-//   }
-
-//   // Validate dSubTopic details if dSubTopic exists (i.e., topicId is present)
-//   if (this.d && this.dSubTopic && this.dSubTopic.topicId) {
-//     if (!this.dSubTopic.englishName || !this.dSubTopic.banglaName) {
-//       return next(new Error("If dSubTopic.topicId is provided, dSubTopic.englishName and dSubTopic.banglaName are required."));
-//     }
-//   }
-
-//   next();
-// });
 
 // Optional: Add indexes for better query performance on frequently searched fields like topic IDs
-// creativeQuestionSchema.index({ 'cTopic.topicId': 1 });
-// creativeQuestionSchema.index({ 'dTopic.topicId': 1 });
-// creativeQuestionSchema.index({ 'cSubTopic.topicId': 1 });
-// creativeQuestionSchema.index({ 'dSubTopic.topicId': 1 });
+ creativeQuestionSchema.index({ 'cTopic.topicId': 1 });
+
+
+creativeQuestionSchema.index({'source.sourceType':1, 'source.source':1, 'source.year':1, 'source.level':1, 'source.group':1, 'source.subject':1});
 
 const CreativeQuestion = mongoose.model('CreativeQuestion', creativeQuestionSchema);
 export default CreativeQuestion;

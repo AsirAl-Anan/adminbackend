@@ -22,44 +22,116 @@ const GEMINI_FLASH_MODEL = "gemini-2.5-flash";
 const GEMINI_FLASH_LITE_MODEL = "gemini-2.5-flash-lite";
 
 // --- Zod Schemas ---
-const segmentSchema = z.array(
-  z.object({
-    title: z.object({
-      english: z.string().describe("A concise, descriptive title for the segment in English."),
-      bangla: z.string().describe("A concise, descriptive title for the segment in Bangla."),
-    }),
-    description: z.object({
-      english: z.string().describe("A clear summary of the segment's content in English."),
-      bangla: z.string().describe("A clear summary of the segment's content in Bangla."),
-    }),
-    formulas: z.object({
-      equation: z.string().describe("The mathematical formula or equation in LaTeX format."),
-      derivation: z.object({
-        english: z.string().describe("A summary of the formula's derivation in English."),
-        bangla: z.string().describe("A summary of the formula's derivation in Bangla."),
-      }),
-      explanation: z.object({
-        english: z.string().describe("An explanation of the formula and its variables in English."),
-        bangla: z.string().describe("An explanation of the formula and its variables in Bangla."),
-      }),
-    }),
-    aliases: z.object({
-      english: z.array(z.string()).describe("Relevant search aliases in English."),
-      bangla: z.array(z.string()).describe("Relevant search aliases in Bangla."),
-      banglish: z.array(z.string()).describe("Relevant search aliases in Banglish (phonetic)."),
-    }),
-  })
-);
-
-const imageDataSchema = z.object({
-    title: z.object({
-        english: z.string().describe("A concise title for the image in English."),
-        bangla: z.string().describe("A concise title for the image in Bangla."),
-    }),
-    description: z.object({
-        english: z.string().describe("A detailed description of the image in English."),
-        bangla: z.string().describe("A detailed description of the image in Bangla."),
-    }),
+// Inlining all schemas to avoid $ref issues with Google Generative AI
+export const extractedTopicSchema = z.object({
+  name: z.object({
+    en: z.string().describe("English name of the topic."),
+    bn: z.string().describe("Bangla name of the topic."),
+  }),
+  description: z.object({
+    en: z.string().describe("English description of the topic."),
+    bn: z.string().describe("Bangla description of the topic."),
+  }).optional(),
+  aliases: z.object({
+    english: z.array(z.string()).describe("Relevant search aliases in English."),
+    bangla: z.array(z.string()).describe("Relevant search aliases in Bangla."),
+    banglish: z.array(z.string()).describe("Relevant search aliases in Banglish (phonetic)."),
+  }).optional(),
+  topicNumber: z.string().optional().describe("The topic number (e.g., '1.1', 'Chapter 2, Topic 3')."),
+  importance: z.enum(["HIGH", "MEDIUM", "LOW"]).default("MEDIUM").describe("Importance level of the topic."),
+  tags: z.array(z.string()).optional().describe("Keywords or tags associated with the topic."),
+  articles: z.array(
+    z.object({
+      learningOutcomes: z.object({
+        en: z.array(z.string()).describe("English learning outcomes for the article."),
+        bn: z.array(z.string()).describe("Bangla learning outcomes for the article."),
+      }).optional(),
+      body: z.object({
+        en: z.string().describe("English body content of the article, can be Markdown/HTML."),
+        bn: z.string().describe("Bangla body content of the article, can be Markdown/HTML."),
+      }).optional(),
+      sections: z.array(
+        z.object({
+          title: z.object({
+            en: z.string().describe("English title of the section."),
+            bn: z.string().describe("Bangla title of the section."),
+          }),
+          body: z.object({
+            en: z.string().describe("English body content of the section, can be Markdown/HTML."),
+            bn: z.string().describe("Bangla body content of the section, can be Markdown/HTML."),
+          }).optional(),
+          images: z.array(
+            z.object({
+              caption: z.object({
+                en: z.string().describe("English caption for the image."),
+                bn: z.string().describe("Bangla caption for the image."),
+              }).optional(),
+            })
+          ).optional().describe("Images within this section (AI extracts captions)."),
+          formulas: z.array(
+            z.object({
+              name: z.object({
+                en: z.string().describe("English name of the formula."),
+                bn: z.string().describe("Bangla name of the formula."),
+              }).optional(),
+              equation: z.string().describe("The mathematical formula or equation in LaTeX format (e.g., '$F=ma$')."),
+              description: z.object({
+                en: z.string().describe("English description of the formula."),
+                bn: z.string().describe("Bangla description of the formula."),
+              }).optional(),
+              derivation: z.object({
+                en: z.string().describe("English derivation of the formula, can be Markdown/HTML."),
+                bn: z.string().describe("Bangla derivation of the formula, can be Markdown/HTML."),
+              }).optional(),
+              variables: z.array(
+                z.object({
+                  symbol: z.string().describe("The symbol of the variable (e.g., 'F', 'm', 'a')."),
+                  definition: z.object({
+                    en: z.string().describe("English definition of the variable."),
+                    bn: z.string().describe("Bangla definition of the variable."),
+                  }).optional(),
+                  unit: z.object({
+                    en: z.string().describe("English unit of the variable (e.g., 'meters/second')."),
+                    bn: z.string().describe("Bangla unit of the variable."),
+                  }).optional(),
+                })
+              ).optional().describe("List of variables used in the formula."),
+            })
+          ).optional().describe("Formulas relevant to this section."),
+        })
+      ).optional().describe("Sections within this article."),
+      formulas: z.array(
+        z.object({
+          name: z.object({
+            en: z.string().describe("English name of the formula."),
+            bn: z.string().describe("Bangla name of the formula."),
+          }).optional(),
+          equation: z.string().describe("The mathematical formula or equation in LaTeX format (e.g., '$F=ma$')."),
+          description: z.object({
+            en: z.string().describe("English description of the formula."),
+            bn: z.string().describe("Bangla description of the formula."),
+          }).optional(),
+          derivation: z.object({
+            en: z.string().describe("English derivation of the formula, can be Markdown/HTML."),
+            bn: z.string().describe("Bangla derivation of the formula, can be Markdown/HTML."),
+          }).optional(),
+          variables: z.array(
+            z.object({
+              symbol: z.string().describe("The symbol of the variable (e.g., 'F', 'm', 'a')."),
+              definition: z.object({
+                en: z.string().describe("English definition of the variable."),
+                bn: z.string().describe("Bangla definition of the variable."),
+              }).optional(),
+              unit: z.object({
+                en: z.string().describe("English unit of the variable (e.g., 'meters/second')."),
+                bn: z.string().describe("Bangla unit of the variable."),
+              }).optional(),
+            })
+          ).optional().describe("List of variables used in the formula."),
+        })
+      ).optional().describe("Master list of formulas for this article."),
+    })
+  ).describe("Array of articles within the topic."),
 });
 
 
@@ -265,7 +337,7 @@ export const extractTopic = async (images) => {
       apiKey: GEMINI_API_KEY,
       temperature: 0,
     });
-    const structuredLlm = llm.withStructuredOutput(segmentSchema);
+    const structuredLlm = llm.withStructuredOutput(extractedTopicSchema);
     
     // 2. Define Prompts
     const ocrPrompt = PromptTemplate.fromTemplate(
@@ -274,14 +346,32 @@ export const extractTopic = async (images) => {
 
     const topicProcessingPrompt = PromptTemplate.fromTemplate(
       `You are an expert academic content processor for Bangladeshi HSC/SSC students.
-      Based on the following OCR text, perform these actions:
-      1.  **Segment**: Divide the text into logical segments (concepts, definitions, laws).
-          - **CRITICAL**: If a story is used to explain a concept, merge the lesson into the concept's description. Do not create a segment for the story itself.
-      2.  **Summarize & Translate**: For each segment, create a concise title and description in both fluent English and natural-sounding Bangla.
-      3.  **Formulas**: Extract any formulas, their derivations, and explanations into the designated fields. Use empty strings if none exist.
-      4.  **Aliases**: Generate at least 5 relevant search aliases (English, Bangla, Banglish), including both keyword-based and question-based queries.
-      5.  **Formatting**: Ensure ALL math is in LaTeX ($...$).
-      Your final output must be ONLY the structured JSON requested.
+      Based on the following OCR text, perform these actions to generate a complete Topic object:
+
+      1.  **Overall Topic Information**:
+          -   **Name**: Create a concise name for the entire topic in both English and Bangla.
+          -   **Description**: Provide an overall description for the topic in both English and Bangla.
+          -   **Aliases**: Generate at least 5 relevant search aliases (English, Bangla, Banglish), including both keyword-based and question-based queries.
+          -   **Topic Number**: If identifiable, extract a topic number (e.g., "1.1").
+          -   **Importance**: Assign an importance level ("HIGH", "MEDIUM", "LOW") based on the content's depth and relevance.
+          -   **Tags**: Generate relevant keywords or tags.
+
+      2.  **Articles**: Divide the content into logical articles. Each article should have:
+          -   **Learning Outcomes**: List key learning outcomes in English and Bangla.
+          -   **Body**: A general body text for the article.
+          -   **Sections**: Further divide the article into logical sections. Each section should have:
+              -   **Title**: A concise title in English and Bangla.
+              -   **Body**: Detailed content for the section.
+              -   **Images**: If images are present or implied by the text, extract a caption for them in English and Bangla. (Do NOT generate image URLs; only captions).
+              -   **Formulas**: Extract any mathematical formulas. For each formula:
+                  -   **Name**: English and Bangla name (if applicable).
+                  -   **Equation**: The formula itself, strictly in LaTeX format (e.g., '$F=ma$').
+                  -   **Description**: English and Bangla description.
+                  -   **Derivation**: English and Bangla derivation (if available).
+                  -   **Variables**: List each variable with its symbol, English/Bangla definition, and English/Bangla unit.
+
+      3.  **Formatting**: Ensure ALL mathematical expressions, symbols, and variables are strictly in LaTeX ($...$).
+      4.  **Output**: Your final output must be ONLY a valid JSON object conforming to the 'extractedTopicSchema'. Ensure all fields are present, using empty strings or arrays where no content is found.
 
       OCR Text: {ocr_text}`
     );
@@ -326,68 +416,5 @@ export const extractTopic = async (images) => {
     throw error; // Re-throw for the controller to handle
   } finally {
       await cleanupFiles(images, true);
-  }
-};
-
-
-/**
- * Analyzes a single image to generate a title and description in both English and Bangla.
- * This is optimized to use a single AI call for efficiency.
- * @param {Object} image - A single uploaded image file object.
- * @returns {Promise<Object>} A promise resolving to the structured image data.
- */
-export const extractDataFromImage = async (image) => {
-  try {
-    // 1. Define the LangChain model with structured output
-    const llm = new ChatGoogleGenerativeAI({
-      model: GEMINI_FLASH_LITE_MODEL,
-      apiKey: GEMINI_API_KEY,
-      temperature: 0.2,
-    });
-    const structuredLlm = llm.withStructuredOutput(imageDataSchema);
-
-    // 2. Create a single, comprehensive prompt
-    const imageAnalysisPrompt = PromptTemplate.fromTemplate(
-      `You are a skilled academic analyst for Bangladeshi HSC/SSC students. Your task is to analyze the given image and generate a structured JSON output with a title and description in both English and natural-sounding Bangla.
-
-      STRICT RULES:
-      - ALL mathematical symbols, formulas, and variables MUST be formatted using LaTeX (e.g., $v_0$, $F=ma$, $\\Delta t$).
-      - The Bangla translation must be fluent and context-aware, not a literal translation.
-      - Return ONLY a valid JSON object matching the requested schema.
-
-      ANALYSIS:
-      1. **Title**: Create a concise title that reflects the core idea of the image.
-      2. **Description**: Explain the image's key elements, variables, and the main scientific principle it demonstrates.
-      `
-    );
-    
-    // 3. Prepare the image data
-    const imageBuffer = await fs.readFile(image.path);
-    const base64Data = imageBuffer.toString("base64");
-    const messages = new HumanMessage({
-        content: [
-            { type: "text", text: imageAnalysisPrompt.template },
-            { 
-                type: "image_url",
-                image_url: { url: `data:image/jpeg;base64,${base64Data}` }
-            },
-        ],
-    });
-
-    // 4. Create and run the chain
-    const chain = RunnableSequence.from([
-        () => messages, // Pass the prepared message to the model
-        structuredLlm,
-    ]);
-
-    const result = await chain.invoke({});
-    
-    return { success: true, data: result };
-
-  } catch (error) {
-    console.error("Error in extractDataFromImage:", error);
-    throw error; // Re-throw for centralized error handling
-  } finally {
-      await cleanupFiles([image], true);
   }
 };

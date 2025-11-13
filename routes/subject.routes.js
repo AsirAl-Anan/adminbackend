@@ -1,54 +1,30 @@
-import express from 'express';
-import {
-  getSubjects,
-  getSubject,
-  getSubjectTopics,
-  getSubjectChapters,
-  addSubject,
-  editSubject,
-  deleteSubject,
-  addChapter,
-  addTopicToChapter,
-  removeTopicFromChapter,
-  removeTopicFromChapterByName,
-  getSubjectsByGroupAndLevel,
-  getSubjectsByLevel,
-  getSubjectsByGroup,
-  removeChapterFromSubject,
-  editTopic
-} from '../controllers/subject.controller.js'; // Adjust path as needed
-import { configurations } from '../utils/multer.js';
-import { deleteAll, recreateAllTopicEmbeddings } from '../services/subject.service.js';
+import express from "express";
+import * as subjectController from "../controllers/subject.controller.js";
+
 const router = express.Router();
 
-// GET routes
-router.get('/', getSubjects);
-router.get('/filter', getSubjectsByGroupAndLevel); // Query params: ?group=science&level=SSC // default route for fetching subject
-router.get('/level/:level', getSubjectsByLevel);   // Path param: /level/SSC
-router.get('/group/:group', getSubjectsByGroup);   // Path param: /group/science
-router.get('/:id', getSubject);  // get subject by id
-router.get('/:id/topics', getSubjectTopics);
-router.get('/:id/chapters', getSubjectChapters);
+// ----------------- Subject Routes -----------------
+router.post("/subjects", subjectController.createSubject);
+router.get("/subjects", subjectController.getAllSubjects);
+router.get("/subjects/:id", subjectController.getSubjectById);
+router.put("/subjects/:id", subjectController.updateSubject);
+router.delete("/subjects/:id", subjectController.deleteSubject);
 
-// POST routes
-router.post('/', addSubject);
-router.post('/:id/chapters', addChapter);
-const parseJson = (req, res, next) => {
-  console.log(req.body);
-  if (req.body.topicData) {
-    req.body.topicData = JSON.parse(req.body.topicData);
-  }
-  next();
-}
+// ----------------- Chapter Routes -----------------
+router.post("/subjects/:subjectId/chapters", subjectController.createChapter);
+router.put("/chapters/:id", subjectController.updateChapter);
+router.delete("/chapters/:id", subjectController.deleteChapter);
 
-router.post('/delete', deleteAll)
-// PUT routes
-router.put('/:id', editSubject);
-router.put('/:id/chapters/:chapterIndex/topics', configurations.any, parseJson,addTopicToChapter);
-router.put('/:id/chapters/:chapterIndex/topics/:topicIndex',configurations.any,editTopic);
-// DELETE routes
-router.delete('/:id', deleteSubject);
-router.delete('/:id/chapters/:chapterIndex/topics/:topicIndex', removeTopicFromChapter);
-router.delete('/:id/chapters/:chapterIndex/topics', removeTopicFromChapterByName);
-router.delete('/:id/chapters/:chapterId',  removeChapterFromSubject);
+// ----------------- Topic Routes -----------------
+router.post("/chapters/:chapterId/topics", subjectController.createTopic);
+router.put("/topics/:id", subjectController.updateTopic);
+router.put("/topics/:topicId/articles", subjectController.updateTopicArticles); // New route for updating articles
+router.delete("/topics/:id", subjectController.deleteTopic);
+
+// ----------------- Formula Routes -----------------
+router.post("/topics/:topicId/formulas", subjectController.createFormula);
+router.get("/formulas/:id", subjectController.getFormulaById);
+router.put("/formulas/:id", subjectController.updateFormula);
+router.delete("/formulas/:id", subjectController.deleteFormula);
+
 export default router;

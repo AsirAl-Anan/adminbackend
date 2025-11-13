@@ -1,526 +1,162 @@
-import * as subjectService from '../services/subject.service.js'; // Adjust path as needed
-import { createEmbeddingsForSubjectsChaptersAndTopics } from '../services/aiRag.service.js';
-// Get all subjects
-export const getSubjects = async (req, res) => {
+import * as subjectService from "../services/subject.service.js";
+
+// ----------------- Subject Controller -----------------
+
+export const createSubject = async (req, res, next) => {
   try {
-    const result = await subjectService.getAllSubjects();
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        data: result.data
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Error fetching subjects',
-        error: result.error
-      });
-    }
+    const subject = await subjectService.createSubject(req.body);
+    res.status(201).json(subject);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subjects',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Get single subject by ID
-export const getSubject = async (req, res) => {
+export const getAllSubjects = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const result = await subjectService.getSubjectById(id);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error fetching subject',
-        error: result.error
-      });
-    }
+    const subjects = await subjectService.getAllSubjects();
+    res.status(200).json(subjects);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subject',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Get subject topics by subject ID
-export const getSubjectTopics = async (req, res) => {
+export const getSubjectById = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const result = await subjectService.getSubjectTopicsById(id);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error fetching subject topics',
-        error: result.error
-      });
-    }
+    const subject = await subjectService.getSubjectById(req.params.id);
+    res.status(200).json(subject);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subject topics',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Get chapters with topics for a specific subject
-export const getSubjectChapters = async (req, res) => {
+export const updateSubject = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const result = await subjectService.getSubjectChaptersById(id);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error fetching subject chapters',
-        error: result.error
-      });
-    }
+    const subject = await subjectService.updateSubject(req.params.id, req.body);
+    res.status(200).json(subject);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subject chapters',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Add new subject
-export const addSubject = async (req, res) => {
+export const deleteSubject = async (req, res, next) => {
   try {
-    const subjectData = req.body;
-    console.log("data",subjectData)
-    const result = await subjectService.createSubject(subjectData);
-    
-    
-
-    if (result.success === true ) {
-          const embedding = await createEmbeddingsForSubjectsChaptersAndTopics(result.data);
-
-      res.status(201).json({
-        success: true,
-        message: 'Subject created successfully',
-        data: result.data,
-        embedding
-      });
-    } else {
-      const statusCode = result.error && result.error.includes('validation') ? 400 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: statusCode === 400 ? 'Validation error' : 'Error creating subject',
-        error: result.error
-      });
-    }
+    const result = await subjectService.deleteSubject(req.params.id);
+    res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error creating subject',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Edit subject
-export const editSubject = async (req, res) => {
+// ----------------- Chapter Controller -----------------
+
+export const createChapter = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const updateData = req.body;
-    const result = await subjectService.updateSubject(id, updateData);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Subject updated successfully',
-        data: result.data
-      });
-    } else {
-      let statusCode = 500;
-      let message = 'Error updating subject';
-      
-      if (result.message === 'Subject not found') {
-        statusCode = 404;
-        message = 'Subject not found';
-      } else if (result.error && result.error.includes('validation')) {
-        statusCode = 400;
-        message = 'Validation error';
-      }
-      
-      res.status(statusCode).json({
-        success: false,
-        message,
-        error: result.error
-      });
-    }
+    const chapter = await subjectService.createChapter(
+      req.params.subjectId,
+      req.body
+    );
+    res.status(201).json(chapter);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error updating subject',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Delete subject
-export const deleteSubject = async (req, res) => {
+export const updateChapter = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const result = await subjectService.deleteSubject(id);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Subject deleted successfully',
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error deleting subject',
-        error: result.error
-      });
-    }
+    const chapter = await subjectService.updateChapter(req.params.id, req.body);
+    res.status(200).json(chapter);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting subject',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Add chapter to subject
-export const addChapter = async (req, res) => {
+export const deleteChapter = async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const chapterData = req.body;
-    const result = await subjectService.addChapterToSubject(id, chapterData);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Chapter added successfully',
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error adding chapter',
-        error: result.error
-      });
-    }
+    const result = await subjectService.deleteChapter(req.params.id);
+    res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error adding chapter',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Add topic to specific chapter
+// ----------------- Topic Controller -----------------
 
-// Remove topic from specific chapter (by index)
-export const removeTopicFromChapter = async (req, res) => {
+export const createTopic = async (req, res, next) => {
   try {
-    
-    const { id, chapterIndex, topicIndex } = req.params;
-    const result = await subjectService.removeTopicFromChapter(id, chapterIndex, topicIndex);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Topic removed successfully',
-        data: result.data
-      });
-    } else {
-      let statusCode = 500;
-      if (result.message === 'Subject not found' || 
-          result.message === 'Chapter not found' || 
-          result.message === 'Topic not found') {
-        statusCode = 404;
-      }
-      
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error removing topic',
-        error: result.error
-      });
-    }
+    const topic = await subjectService.createTopic(
+      req.params.chapterId,
+      req.body
+    );
+    res.status(201).json(topic);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error removing topic',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Remove topic from specific chapter (by name)
-export const removeTopicFromChapterByName = async (req, res) => {
+export const updateTopic = async (req, res, next) => {
   try {
-    const { id, chapterIndex } = req.params;
-    const { topicEnglishName } = req.body;
-    
-    if (!topicEnglishName) {
-      return res.status(400).json({
-        success: false,
-        message: 'Topic englishName is required in request body'
-      });
-    }
-    
-    const result = await subjectService.removeTopicFromChapterByNames(id, chapterIndex, topicEnglishName);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Topic removed successfully',
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' || 
-                        result.message === 'Chapter not found' ? 404 : 500;
-      
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error removing topic',
-        error: result.error
-      });
-    }
+    const topic = await subjectService.updateTopic(req.params.id, req.body);
+    res.status(200).json(topic);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error removing topic',
-      error: error.message
-    });
-  }
-};
-// Get subjects by group and level
-export const getSubjectsByGroupAndLevel = async (req, res) => {
-  try {
-    const { group, level } = req.query;
-    
-    // Validate query parameters
-    const validGroups = ['science', 'arts', 'commerce'];
-    const validLevels = ['SSC', 'HSC'];
-    
-    if (group && !validGroups.includes(group)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid group. Must be one of: science, arts, commerce'
-      });
-    }
-    
-    if (level && !validLevels.includes(level)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid level. Must be one of: SSC, HSC'
-      });
-    }
-    
-    const result = await subjectService.getSubjectsByGroupAndLevel(group, level);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        count: result.count,
-        data: result.data
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Error fetching subjects',
-        error: result.error
-      });
-    }
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subjects',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Get subjects by level only
-export const getSubjectsByLevel = async (req, res) => {
+export const deleteTopic = async (req, res, next) => {
   try {
-    const { level } = req.params;
-    
-    // Validate level parameter
-    const validLevels = ['SSC', 'HSC'];
-    if (!validLevels.includes(level)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid level. Must be one of: SSC, HSC'
-      });
-    }
-    
-    const result = await subjectService.getSubjectsByLevel(level);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        count: result.count,
-        data: result.data
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Error fetching subjects',
-        error: result.error
-      });
-    }
+    const result = await subjectService.deleteTopic(req.params.id);
+    res.status(200).json(result);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subjects',
-      error: error.message
-    });
+    next(error);
   }
 };
 
-// Get subjects by group only
-export const getSubjectsByGroup = async (req, res) => {
+export const updateTopicArticles = async (req, res, next) => {
   try {
-    const { group } = req.params;
-    
-    // Validate group parameter
-    const validGroups = ['science', 'arts', 'commerce'];
-    if (!validGroups.includes(group)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid group. Must be one of: science, arts, commerce'
-      });
-    }
-    
-    const result = await subjectService.getSubjectsByGroup(group);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        count: result.count,
-        data: result.data
-      });
-    } else {
-      res.status(500).json({
-        success: false,
-        message: 'Error fetching subjects',
-        error: result.error
-      });
-    }
+    const topic = await subjectService.updateTopicArticles(req.params.topicId, req.body.articles);
+    res.status(200).json(topic);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching subjects',
-      error: error.message
-    });
+    next(error);
   }
 };
-export const removeChapterFromSubject = async (req, res) => { 
+
+// ----------------- Formula Controller -----------------
+
+export const createFormula = async (req, res, next) => {
   try {
-    const { id, chapterId } = req.params;
-    const result = await subjectService.removeChapterFromSubject(id, chapterId);
-    
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Chapter removed successfully',
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error removing chapter',
-        error: result.error
-      });
-    }
+    const formula = await subjectService.createFormula(
+      req.params.topicId,
+      req.body
+    );
+    res.status(201).json(formula);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error removing chapter',
-      error: error.message
-    });
+    next(error);
   }
-}
+};
 
-export const editTopic = async(req,res) =>{
-  
-  const {id,chapterIndex,topicIndex} = req.params
-  const subjectId = id
-  const data = req.body.editableData
-  const result = await subjectService.editTopic(subjectId, chapterIndex, topicIndex,data, req.files)
-  console.log(result)
- if(result.success === true){
-   res.status(200).json({
-   success: true,
-   message: 'Topic edited successfully',
-   data: result.data
- });
- }
- if(result.success === false){
-   res.status(400).json({
-     success: false,
-     message: result.error
-   });
- }
-  
-
-}
-export const addTopicToChapter = async (req, res) => {
+export const getFormulaById = async (req, res, next) => {
   try {
-    console.log(req.body)
-    const { id, chapterIndex } = req.params;
-    const { topicData } = req.body;
-  
-    const result = await subjectService.addTopicToChapter(id, chapterIndex, topicData,req.files);
-    console.log(result)
-    if (result.success) {
-      res.status(200).json({
-        success: true,
-        message: 'Topic added successfully',
-        data: result.data
-      });
-    } else {
-      const statusCode = result.message === 'Subject not found' ? 404 : 500;
-      res.status(statusCode).json({
-        success: false,
-        message: result.message || 'Error adding topic',
-        error: result.error
-      });
-    }
+    const formula = await subjectService.getFormulaById(req.params.id);
+    res.status(200).json(formula);
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Error adding topic',
-      error: error.message
-    });
+    next(error);
+  }
+};
+
+export const updateFormula = async (req, res, next) => {
+  try {
+    const formula = await subjectService.updateFormula(req.params.id, req.body);
+    res.status(200).json(formula);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteFormula = async (req, res, next) => {
+  try {
+    const result = await subjectService.deleteFormula(req.params.id);
+    res.status(200).json(result);
+  } catch (error) {
+    next(error);
   }
 };

@@ -1,9 +1,10 @@
 
 import { findSimilarDocsBySubjectChapterAndTopic, createEmbeddingsForSubjectsChaptersAndTopics , findSimilarDocsWithParsedContent,createEmbeddings } from "../services/aiRag.service.js";
 import {extractTopic} from '../services/aiService.js' 
-import { validateImageUpload, validateFileSizes,  } from "../utils/file.utils.js";
-import { extractQuestionsFromImages, extractAnswersFromImages, extractDataFromImage } from "../services/aiService.js";
+import { validateImageUpload, validateFileSizes, cleanupFiles } from "../utils/file.utils.js";
+import { extractQuestionsFromImages, extractAnswersFromImages } from "../services/aiService.js";
 import embeddings from "../services/aiEmbedding.service.js";
+import { uploadImage } from "../utils/cloudinary.js"; // Import uploadImage
 export const createEmbedingsForSubjectsChaptersAndTopics = async (req, res) => {
 try {
   
@@ -19,6 +20,40 @@ try {
         console.error("Error in splitText:", error);
     
 }
+}
+
+/**
+ * Uploads a single image to Cloudinary and returns its URL.
+ * @route POST /ai/upload-single-image
+ */
+export async function uploadSingleImage(req, res) {
+  console.log("Processing single image upload request");
+  if (!req.file) {
+    return res.status(400).json({
+      success: false,
+      message: "No image file provided.",
+    });
+  }
+
+  try {
+    const uploadResult = await uploadImage(req.file.path);
+    const imageUrl = uploadResult.data.url;
+    console.log("Single image uploaded successfully:", imageUrl);
+
+    await cleanupFiles([req.file]); // cleanupFiles expects an array
+
+    return res.status(200).json({
+      success: true,
+      data: { url: imageUrl },
+    });
+  } catch (error) {
+    console.error("Error during single image upload:", error);
+    await cleanupFiles([req.file], true); // Attempt cleanup even on failure
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload image. Please try again.",
+    });
+  }
 }
 export const getSimilarDocsBySubjectChapterAndTopic =async (req,res) =>{
  const result = await findSimilarDocsWithParsedContent(req.body.query, 10);
@@ -111,25 +146,6 @@ if(result.success === false){
     });
 
 }
-}
-export const extractImageData =async (req,res) =>{ 
-try {
-  const response = await extractDataFromImage(req.files.image[0])
-  console.log("res is :",res)
-  res.status(200).json({
-    success: true,
-    data: response
-  });
-
-} catch (error) {
-  console.error("Error extracting answers:", error);
-  
-  return res.status(500).json({
-    success: false,
-    message: "Failed to extract answers from images. Please try again.",
-  });
-}
-
 }
 export const createEmbeddingsForTopicAndSegment = async (topic) => {
 const { englishName, banglaName, questionTypes, segment, chapter ,subject} = topic;
