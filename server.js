@@ -1,7 +1,6 @@
 
 import app from './app.js';
 import http from 'http';
-import { connectDb } from './config/db.config.js';
 import dotenv from 'dotenv';
 import { Server } from 'socket.io';
 dotenv.config();
@@ -31,11 +30,10 @@ io.on("connection", (socket) =>{
   
 })
 
-connectDb().then(()=>{
-    console.log('db connected')
-})
+
 const PORT = process.env.PORT ;
-server.listen(process.env.PORT, ()=>{
+
+server.listen(PORT, ()=>{
     
-    console.log(`server is running on port ${process.env.PORT}`)
+    console.log(`server is running on port ${PORT}`)
 })

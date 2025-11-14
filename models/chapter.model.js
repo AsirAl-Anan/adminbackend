@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 const chapterSchema  = new mongoose.Schema({
     subjectId:{
@@ -38,6 +39,6 @@ const chapterSchema  = new mongoose.Schema({
 },{timestamps:true})
 
 
-const Chapter = mongoose.model("Chapter", chapterSchema);
+const Chapter = academicDb.model("Chapter", chapterSchema);
 
 export default Chapter;

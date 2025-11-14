@@ -1,4 +1,5 @@
 import mongoose, { Schema } from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 const questionEmbeddingSchame = new Schema({
     creativeQuestionId: {  // for creative question of b1,chem,hm,phy and others
@@ -18,6 +19,6 @@ const questionEmbeddingSchame = new Schema({
     }
 }, { timestamps: true });
 
-const QuestionEmbedding  = mongoose.model("QuestionEmbedding", questionEmbeddingSchame);
+const QuestionEmbedding  = academicDb.model("QuestionEmbedding", questionEmbeddingSchame);
 
 export default QuestionEmbedding;

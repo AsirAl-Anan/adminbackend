@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 const topicSchema = new mongoose.Schema({
   // --- Core Identifiers (Unchanged) ---
@@ -74,6 +75,7 @@ sections: [
     images: [{
       url: { type: String, required: true },
       caption: { en: String, bn: String },
+      description: { en: String, bn: String },
       order: Number,
     }],
     videos: [{
@@ -126,6 +128,6 @@ relatedQuestions:[
 
 }, { timestamps: true });
 
-const Topic = mongoose.model("Topic", topicSchema);
+const Topic = academicDb.model("Topic", topicSchema);
 
 export default Topic;

@@ -1,5 +1,6 @@
-import mongoose, { mongo } from "mongoose";
+import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import { academicDb } from "../config/db.config.js";
 
 
 const adminSchema = new mongoose.Schema({
@@ -37,5 +38,5 @@ adminSchema.methods.comparePassword = async function (password){
     return await bcrypt.compare(password, this.password)
 }
 
- const Admin = mongoose.model('Admin',adminSchema)
+ const Admin = academicDb.model('Admin',adminSchema)
  export default Admin

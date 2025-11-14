@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 const b2QuestionSchema = new mongoose.Schema(
     {
         questionNumber: { // The main question number (e.g., 1, 2, 3...)
@@ -69,6 +70,6 @@ const b2QuestionSchema = new mongoose.Schema(
     { timestamps: true } // Adds createdAt and updatedAt fields automatically
 );
 
-const b2Question = mongoose.model("b2Question", b2QuestionSchema);
+const b2Question = academicDb.model("b2Question", b2QuestionSchema);
 
 export default b2Question;

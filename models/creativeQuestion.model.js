@@ -1,5 +1,6 @@
 // models/CreativeQuestion.js
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 // Constants for enums
 const BOARDS = [
@@ -114,5 +115,5 @@ const creativeQuestionSchema = new mongoose.Schema({
 
 creativeQuestionSchema.index({'source.sourceType':1, 'source.source':1, 'source.year':1, 'source.level':1, 'source.group':1, 'source.subject':1});
 
-const CreativeQuestion = mongoose.model('CreativeQuestion', creativeQuestionSchema);
+const CreativeQuestion = academicDb.model('CreativeQuestion', creativeQuestionSchema);
 export default CreativeQuestion;

@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { userDb } from "../config/db.config.js";
 
 
 const messageSchema = mongoose.Schema({
@@ -19,5 +20,5 @@ const messageSchema = mongoose.Schema({
 }, {timestamps:true});
 
 
-const Message = mongoose.model("Message", messageSchema);
+const Message = userDb.model("Message", messageSchema);
 export default Message;

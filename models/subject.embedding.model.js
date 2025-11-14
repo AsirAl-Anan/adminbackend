@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 const subjectEmbeddingSchema = new mongoose.Schema({
   subject: { englishName: { type: String, required: true }, banglaName: { type: String, required: true } },
@@ -10,6 +11,6 @@ const subjectEmbeddingSchema = new mongoose.Schema({
   embedding: { type: [Number], required: true }, // embedding vector array
 });
 
-const SubjectEmbedding = mongoose.model("SubjectEmbedding", subjectEmbeddingSchema);
+const SubjectEmbedding = academicDb.model("SubjectEmbedding", subjectEmbeddingSchema);
 
 export default SubjectEmbedding;

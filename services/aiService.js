@@ -60,14 +60,7 @@ export const extractedTopicSchema = z.object({
             en: z.string().describe("English body content of the section, can be Markdown/HTML."),
             bn: z.string().describe("Bangla body content of the section, can be Markdown/HTML."),
           }).optional(),
-          images: z.array(
-            z.object({
-              caption: z.object({
-                en: z.string().describe("English caption for the image."),
-                bn: z.string().describe("Bangla caption for the image."),
-              }).optional(),
-            })
-          ).optional().describe("Images within this section (AI extracts captions)."),
+         
           formulas: z.array(
             z.object({
               name: z.object({

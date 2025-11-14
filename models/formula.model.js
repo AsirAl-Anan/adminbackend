@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 const formulaSchema = new mongoose.Schema({
   // --- Core Formula Content ---
@@ -80,6 +81,6 @@ const formulaSchema = new mongoose.Schema({
 // Create a compound index for common queries
 formulaSchema.index({ subjectId: 1, chapterId: 1, topicId: 1 });
 
-const Formula = mongoose.model("Formula", formulaSchema);
+const Formula = academicDb.model("Formula", formulaSchema);
 
 export default Formula;

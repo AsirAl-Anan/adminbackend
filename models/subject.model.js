@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { academicDb } from "../config/db.config.js";
 
 const GROUPS = ["SCIENCE", "HUMANITIES", "COMMERCE"];
 const LEVELS = ["SSC", "HSC"];
@@ -41,6 +42,6 @@ const subjectSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-const Subject = mongoose.model("Subject", subjectSchema);
+const Subject = academicDb.model("Subject", subjectSchema);
 
 export default Subject;

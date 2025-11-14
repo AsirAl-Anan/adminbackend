@@ -34,7 +34,7 @@ router.post(
 router.post("/rag/getSubjectQuery", getSimilarDocsBySubjectChapterAndTopic);
 
 router.post(
-  "/extract-segments",
+  "/extract-topic",
   configurations.fields,
   handleMulterError,
   extractTopicFromImage

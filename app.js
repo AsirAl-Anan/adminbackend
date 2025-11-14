@@ -8,7 +8,6 @@ import AuthRouter from "./routes/auth.routes.js";
 import questionRouter from "./routes/question.routes.js";
 import aiRouter from "./routes/ai.routes.js";
 import subjectRouter from "./routes/subject.routes.js"; 
-import { connectDb } from "./config/db.config.js";
 import { testing } from "./langchain/geminiAi.js";
 import dotenv from 'dotenv';
 dotenv.config();
@@ -16,7 +15,7 @@ import b2Router from "./routes/b2.routes.js";
 import splitText from "./langchain/index.js";
 import messageRouter from "./routes/message.routes.js";
 import { searchSimilarChunks } from "./langchain/index.js";
-connectDb()
+
 const app = express();
 
 app.use(express.json({limit:'10mb'}));
