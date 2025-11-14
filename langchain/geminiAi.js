@@ -5,6 +5,8 @@ import { MongoClient } from "mongodb";
 import { MongoDBAtlasVectorSearch } from "@langchain/mongodb";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableSequence , RunnablePassthrough} from "@langchain/core/runnables";
+import dotenv from 'dotenv';
+dotenv.config();
 const apiKey = "AIzaSyCK6WyD3zCd_gl93uO3wj7VKhOho3Pr5e8";
 const model = "gemini-2.5-flash-lite";
 

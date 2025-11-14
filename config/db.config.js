@@ -4,10 +4,7 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // User Database Connection
-const userDb = mongoose.createConnection(process.env.MONGODB_URI_USER, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const userDb = mongoose.createConnection(process.env.MONGODB_URI_USER);
 
 userDb.on('error', (err) => {
   console.error('User DB connection error:', err);
@@ -19,10 +16,7 @@ userDb.once('open', () => {
 });
 
 // Academic Database Connection
-const academicDb = mongoose.createConnection(process.env.MONGODB_URI_ACADEMIC, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const academicDb = mongoose.createConnection(process.env.MONGODB_URI_ACADEMIC);
 
 academicDb.on('error', (err) => {
   console.error('Academic DB connection error:', err);

@@ -13,7 +13,7 @@ import { PROMPTS } from "../constants/prompts.js";
 dotenv.config();
 
 // --- Constants ---
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY ;
 if (!GEMINI_API_KEY) {
   throw new Error("GEMINI_API_KEY is not set in the environment variables.");
 }
