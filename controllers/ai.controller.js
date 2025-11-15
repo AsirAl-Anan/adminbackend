@@ -1,6 +1,6 @@
 
 import { findSimilarDocsBySubjectChapterAndTopic, createEmbeddingsForSubjectsChaptersAndTopics , findSimilarDocsWithParsedContent,createEmbeddings } from "../services/aiRag.service.js";
-import {extractTopic} from '../services/aiService.js' 
+import {extractTopic, extractArticle} from '../services/aiService.js' 
 import { validateImageUpload, validateFileSizes, cleanupFiles } from "../utils/file.utils.js";
 import { extractQuestionsFromImages, extractAnswersFromImages } from "../services/aiService.js";
 import embeddings from "../services/aiEmbedding.service.js";
@@ -130,9 +130,28 @@ export async function extractAnswers(req, res) {
 }
 export const extractTopicFromImage =async (req,res) =>{
 const images = req.files.topic
-console.log(images)
-const result = await extractTopic(images)
+const body = JSON.parse(req.body.aiControls)
+const result = await extractTopic(images, body)
 if(result.success === true){
+    res.json({
+        success: true,
+        result
+    });
+
+}
+if(result.success === false){
+    res.json({
+        success: false,
+        message: "Failed to extract topic from images. Please try again."
+    });
+
+}
+}
+export const extractArticleFromImage = async (req,res) =>{
+  const body = JSON.parse(req.body.aiControls)
+  const images = req.files.article
+  const result = await extractArticle(images, body)
+  if(result.success === true){
     res.json({
         success: true,
         result

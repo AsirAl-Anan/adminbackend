@@ -91,15 +91,9 @@ const configurations = {
     { name: 'qb', maxCount: 6 },
    
    { name: 'stemImage', maxCount: 1 },
-
-    { name: 'cAnswerImage', maxCount: 1 },
-  
-
-    { name: 'dAnswerImage', maxCount: 1 },
-
-    
-    { name: 'documents', maxCount: 8 },
-   { name: 'topic', maxCount: 6 }
+   { name: 'documents', maxCount: 8 },
+   { name: 'topic', maxCount: 6 },
+   {name:"article",maxCount:6},
   ]),
   
   // Any files

@@ -9,8 +9,10 @@ import {
   extractAnswers,
   extractQuestions,
   extractTopicFromImage,
-  uploadSingleImage, // Import the new controller function
+  uploadSingleImage, 
+  extractArticleFromImage
 } from "../controllers/ai.controller.js";
+import { extractArticle } from "../services/aiService.js";
 
 const router = Router();
 
@@ -39,6 +41,13 @@ router.post(
   handleMulterError,
   extractTopicFromImage
 );
+router.post(
+  "/extract-article",
+  configurations.fields,
+  handleMulterError,
+  extractArticleFromImage
+);
+
 
 // New route for single image upload
 router.post(
