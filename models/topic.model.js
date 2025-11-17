@@ -1,6 +1,19 @@
 import mongoose from "mongoose";
 import { academicDb } from "../config/db.config.js";
 
+// new schema
+const questionTypeSchema = new mongoose.Schema({
+  name: {
+    en: { type: String, required: true },
+    bn: { type: String, required: true },
+  },
+  description: {
+    en: { type: String },
+    bn: { type: String  },
+  },
+});
+
+
 const topicSchema = new mongoose.Schema({
   // --- Core Identifiers (Unchanged) ---
   subjectId: {
@@ -43,82 +56,83 @@ const topicSchema = new mongoose.Schema({
     enum: ["HIGH", "MEDIUM", "LOW"],
     default: "MEDIUM",
   },
+  questionTypes: [questionTypeSchema],  // new field
   tags: [{ type: String, trim: true }],
 
   // --- Enriched Content Block (SIGNIFICANTLY UPDATED) ---
-articles:[
-   {
-learningOutcomes: {
-  en: [{ type: String, trim: true }],
-  bn: [{ type: String, trim: true }],
-},
-  body: {
-      en: { type: String },
-      bn: { type: String },
-    },
-//  Master list of all formulas for this topic, now stored as references.
-formulas: [{
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "Formula", // Points to the separate Formula collection
-}],
+  articles: [
+    {
+      learningOutcomes: {
+        en: [{ type: String, trim: true }],
+        bn: [{ type: String, trim: true }],
+      },
+      body: {
+        en: { type: String },
+        bn: { type: String },
+      },
+      //  Master list of all formulas for this topic, now stored as references.
+      formulas: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Formula", // Points to the separate Formula collection
+      }],
 
-sections: [
-  {
-    title: {
-      en: { type: String, trim: true },
-      bn: { type: String, trim: true },
-    },
-    body: {
-      en: { type: String },
-      bn: { type: String },
-    },
-    images: [{
-      url: { type: String, required: true },
-      caption: { en: String, bn: String },
-      description: { en: String, bn: String },
-      order: Number,
-    }],
-    videos: [{
-        url: { type: String, required: true },
-        platform: { type: String, enum: ["YOUTUBE", "FACEBOOK"]},
-        caption: { en: String, bn: String },
-        videoId: { type: String },
-    }],
-    examples: [{
-      title: { en: String, bn: String },
-      question: { en: String, bn: String },
-      answer: { en: String, bn: String },
-      type:{
-        type: String,
-        enum:["STATEMENT", "MCQ", "CQ", "COMPREHENSIVE"]
-      }
-    }],
+      sections: [
+        {
+          title: {
+            en: { type: String, trim: true },
+            bn: { type: String, trim: true },
+          },
+          body: {
+            en: { type: String },
+            bn: { type: String },
+          },
+          images: [{
+            url: { type: String, required: true },
+            caption: { en: String, bn: String },
+            description: { en: String, bn: String },
+            order: Number,
+          }],
+          videos: [{
+            url: { type: String, required: true },
+            platform: { type: String, enum: ["YOUTUBE", "FACEBOOK"] },
+            caption: { en: String, bn: String },
+            videoId: { type: String },
+          }],
+          examples: [{
+            title: { en: String, bn: String },
+            question: { en: String, bn: String },
+            answer: { en: String, bn: String },
+            type: {
+              type: String,
+              enum: ["STATEMENT", "MCQ", "CQ", "COMPREHENSIVE"]
+            }
+          }],
 
-    // holds references to formulas from the master list above.
-    formulas: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Formula",
-    }],
-  }
-],
-
-// These fields are unchanged
-relatedCreativeQuestions: [{
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "CreativeQuestion",
-}],
-relatedMCQs: [{
-  type: mongoose.Schema.Types.ObjectId,
-  ref: "MCQ",
-}],
-relatedQuestions:[
-  {
-    question: { type: String },
-    answer: { type: String }
-  }
-]
-},
-],
+          // holds references to formulas from the master list above.
+          formulas: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Formula",
+          }],
+        }
+      ],
+      
+      // These fields are unchanged
+      relatedCreativeQuestions: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "CreativeQuestion",
+      }],
+      relatedMCQs: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "MCQ",
+      }],
+      relatedQuestions: [
+        {
+          question: { type: String },
+          answer: { type: String }
+        }
+      ]
+    },
+  ],
 
   // --- Relationships (Unchanged) ---
   relatedTopics: [{
@@ -128,6 +142,6 @@ relatedQuestions:[
 
 }, { timestamps: true });
 
-const Topic = academicDb.model("Topic", topicSchema);
 
+const Topic = academicDb.model("Topic", topicSchema);
 export default Topic;

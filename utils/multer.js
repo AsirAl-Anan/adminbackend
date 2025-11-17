@@ -87,13 +87,18 @@ const configurations = {
   none: upload.none(),
   // Multiple files with different field names
   fields: upload.fields([
-    { name: 'image', maxCount: 2 },
-    { name: 'qb', maxCount: 6 },
-   
-   { name: 'stemImage', maxCount: 1 },
-   { name: 'documents', maxCount: 8 },
-   { name: 'topic', maxCount: 6 },
-   {name:"article",maxCount:6},
+    { name: 'stemImages', maxCount: 10 },
+    { name: 'aQuestionImages', maxCount: 10 },
+    { name: 'aAnswerImages', maxCount: 10 },
+    { name: 'bQuestionImages', maxCount: 10 },
+    { name: 'bAnswerImages', maxCount: 10 },
+    { name: 'cQuestionImages', maxCount: 10 },
+    { name: 'cAnswerImages', maxCount: 10 },
+    { name: 'dQuestionImages', maxCount: 10 },
+    { name: 'dAnswerImages', maxCount: 10 },
+    { name: 'documents', maxCount: 8 },
+    { name: 'topic', maxCount: 6 },
+    { name: 'article', maxCount: 6 },
   ]),
   
   // Any files

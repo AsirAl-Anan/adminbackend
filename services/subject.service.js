@@ -114,6 +114,44 @@ export const updateChapter = async (id, chapterData) => {
   }
   return chapter;
 };
+export const getSubjectsByLevelAndGroup = async (level, group) => {
+    if (!level || !group) {
+        throw new AppError("Level and group are required.", 400);
+    }
+    return await Subject.find({ level, group }).select('_id name');
+};
+export const getChaptersBySubject = async (subjectId) => {
+    if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+        throw new AppError("Invalid Subject ID.", 400);
+    }
+    const subject = await Subject.findById(subjectId).populate('chapters', '_id name chapterNo');
+    if (!subject) {
+        throw new AppError("Subject not found.", 404);
+    }
+    return subject.chapters;
+};
+export const getTopicsByChapter = async (chapterId) => {
+    if (!mongoose.Types.ObjectId.isValid(chapterId)) {
+        throw new AppError("Invalid Chapter ID.", 400);
+    }
+    const chapter = await Chapter.findById(chapterId).populate('topics', '_id name topicNumber');
+    if (!chapter) {
+        throw new AppError("Chapter not found.", 404);
+    }
+    return chapter.topics;
+};
+
+// NEW: Get question types for a specific topic
+export const getQuestionTypesByTopic = async (topicId) => {
+    if (!mongoose.Types.ObjectId.isValid(topicId)) {
+        throw new AppError("Invalid Topic ID.", 400);
+    }
+    const topic = await Topic.findById(topicId).select('questionTypes');
+    if (!topic) {
+        throw new AppError("Topic not found.", 404);
+    }
+    return topic.questionTypes;
+};
 
 export const deleteChapter = async (id) => {
   const chapter = await Chapter.findById(id);
