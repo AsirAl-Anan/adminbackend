@@ -14,7 +14,7 @@ const handleControllerError = (res, error, message = 'An internal server error o
 // Create a new question
 export const addQuestion = async (req, res) => {
     try {
-        console.log("req body for adding cq", req.body);
+        console.log("req body for adding cq", req.body.a.question);
         const result = await questionService.createQuestion(req.body);
         console.log("result for adding cq", result);
         if (result.success) {
@@ -74,5 +74,20 @@ export const deleteQuestion = async (req, res) => {
         }
     } catch (error) {
         handleControllerError(res, error, 'Error deleting question.');
+    }
+};
+
+// Get all questions by subject ID
+export const getQuestionsBySubject = async (req, res) => {
+    try {
+        const { subjectId } = req.params;
+        const result = await questionService.getQuestionsBySubject(subjectId);
+        if (result.success) {
+            res.status(200).json(result);
+        } else {
+            res.status(404).json(result);
+        }
+    } catch (error) {
+        handleControllerError(res, error, 'Error fetching questions by subject.');
     }
 };

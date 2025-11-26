@@ -4,7 +4,7 @@ import {
   getQuestion,
   editQuestion,
   deleteQuestion,
-  // Removed outdated GET routes, can be added back with new logic later
+  getQuestionsBySubject,
 } from '../controllers/question.controller.js';
 
 const router = express.Router();
@@ -36,6 +36,9 @@ router.post('/', parseBodyMiddleware, addQuestion);
 
 // GET /api/questions/:id - Get a single question by ID
 router.get('/:id', getQuestion);
+
+// GET /api/questions/subject/:subjectId - Get all questions for a subject
+router.get('/subject/:subjectId', getQuestionsBySubject);
 
 // PUT /api/questions/:id - Update a question by ID
 router.put('/:id', parseBodyMiddleware, editQuestion);

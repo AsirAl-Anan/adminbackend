@@ -10,6 +10,7 @@ import mongoose from 'mongoose';
  * @returns {object} A structured error response object.
  */
 const handleValidationError = (error) => {
+
     const details = Object.values(error.errors).map(e => ({
         field: e.path,
         message: e.message,
@@ -22,6 +23,17 @@ const handleValidationError = (error) => {
     };
 };
 
+// Helper to clean content blocks
+const cleanBlocks = (blocks) => {
+    if (!Array.isArray(blocks)) return [];
+    // Filter out blocks that are completely empty (though frontend usually handles this)
+    // And re-assign order to ensure it's sequential
+    return blocks
+        .map((block, index) => ({
+            ...block,
+            order: index + 1,
+        }));
+};
 
 /**
  * Create a new Creative Question.
@@ -50,8 +62,19 @@ export const createQuestion = async (questionData) => {
 
         // --- IMPORTANT: Denormalization ---
         // Add the fetched names to the metadata before saving.
-        questionData.meta.subject.name = subject.name.en; // Assuming english name for now, adjust if needed
-        questionData.meta.mainChapter.name = mainChapter.name.en; // Assuming english name, adjust if needed
+        questionData.meta.subject.name = subject.name.en; 
+        questionData.meta.mainChapter.name = mainChapter.name.en; 
+
+        // --- Sanitization of Content Blocks ---
+        // Ensure consistent ordering and structure for block-based fields
+        if (questionData.stem) questionData.stem = cleanBlocks(questionData.stem);
+        
+        ['a', 'b', 'c', 'd'].forEach(part => {
+            if (questionData[part]) {
+                if (questionData[part].question) questionData[part].question = cleanBlocks(questionData[part].question);
+                if (questionData[part].answer) questionData[part].answer = cleanBlocks(questionData[part].answer);
+            }
+        });
 
         const newQuestion = new CreativeQuestion(questionData);
         const savedQuestion = await newQuestion.save();
@@ -60,6 +83,7 @@ export const createQuestion = async (questionData) => {
 
     } catch (error) {
         if (error.name === 'ValidationError') {
+            console.log("Validation Error - createQuestion:", error);
             return handleValidationError(error);
         }
         console.error("Service Error - createQuestion:", error);
@@ -103,7 +127,6 @@ export const updateQuestion = async (id, updateData) => {
         }
 
         // --- Handle Denormalization on Update ---
-        // If the subject or mainChapter ID is being changed, we must also update the denormalized name.
         if (updateData.meta?.subject?._id) {
             const subject = await Subject.findById(updateData.meta.subject._id).select('name').lean();
             if (!subject) return { success: false, message: `Subject with ID ${updateData.meta.subject._id} not found.`, statusCode: 404 };
@@ -115,9 +138,19 @@ export const updateQuestion = async (id, updateData) => {
             updateData.meta.mainChapter.name = mainChapter.name.en;
         }
 
+        // --- Sanitization of Content Blocks on Update ---
+        if (updateData.stem) updateData.stem = cleanBlocks(updateData.stem);
+        ['a', 'b', 'c', 'd'].forEach(part => {
+            if (updateData[part]) {
+                 if (updateData[part].question) updateData[part].question = cleanBlocks(updateData[part].question);
+                 if (updateData[part].answer) updateData[part].answer = cleanBlocks(updateData[part].answer);
+            }
+        });
+
+
         const updatedQuestion = await CreativeQuestion.findByIdAndUpdate(
             id,
-            { $set: updateData }, // Use $set to prevent overwriting nested objects unless intended
+            { $set: updateData },
             { new: true, runValidators: true, context: 'query' }
         );
 
@@ -157,5 +190,24 @@ export const deleteQuestion = async (id) => {
     } catch (error) {
         console.error("Service Error - deleteQuestion:", error);
         return { success: false, message: 'Error deleting question.', error: error.message };
+    }
+};
+
+/**
+ * Get all Creative Questions by Subject ID.
+ * @param {string} subjectId - The ID of the subject.
+ * @returns {Promise<object>} A promise that resolves to a success or error object.
+ */
+export const getQuestionsBySubject = async (subjectId) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+            return { success: false, message: 'Invalid subject ID format.' };
+        }
+        const questions = await CreativeQuestion.find({ 'meta.subject._id': subjectId }).sort({ createdAt: -1 });
+
+        return { success: true, data: questions };
+    } catch (error) {
+        console.error("Service Error - getQuestionsBySubject:", error);
+        return { success: false, message: 'Error fetching questions by subject.', error: error.message };
     }
 };

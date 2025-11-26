@@ -10,7 +10,7 @@ const BOARDS = [
 ];
 const GROUPS = ['SCIENCE', 'HUMANITIES', 'COMMERCE'];
 const LEVELS = ['SSC', 'HSC'];
-const SOURCE_TYPES = ['BOARD', 'AI', 'INSTITUTION'];
+const SOURCE_TYPES = ['BOARD', 'OTHER', 'INSTITUTION'];
 
 // --- Reusable Sub-schemas for a DRY (Don't Repeat Yourself) approach ---
 
@@ -90,29 +90,24 @@ const partSchema = new mongoose.Schema({
  * @description Captures the origin and context of the question.
  */
 const sourceSchema = new mongoose.Schema({
-  sourceType: { type: String, enum: SOURCE_TYPES, required: true },
-  source: { type: String,  trim: true }, // e.g., "Dhaka Board", "AI", "Notre Dame College"
-  year: { type: Number, required: true, min: 2010, max: new Date().getFullYear() + 5 },
-  examType: { // e.g., "Midterm", "Final". Required only for institutions.
-    type: String,
-    trim: true,
-    required: function() {
-      return this.sourceType === 'INSTITUTION';
+  source: {
+    sourceType: { type: String, enum: SOURCE_TYPES, required: true },
+    value: {
+      type: String,
+      required: true
     }
   },
-  board: { // Required only when the sourceType is 'BOARD'.
+  year: { type: Number, required: true, min: 2010, max: new Date().getFullYear() + 5 },
+  examType: {
     type: String,
-    enum: BOARDS,
+    enum: ['TEST', 'PRETEST', 'HALFYEARLY', 'FINAL',''],
+    trim: true,
     required: function() {
-      return this.sourceType === 'BOARD';
+      return this.source.sourceType === 'INSTITUTION';
     }
   },
 }, { _id: false });
 
-/**
- * @description Contains metadata for categorization and filtering.
- * Includes denormalized fields (name) to improve read performance by avoiding frequent population.
- */
 const metaDataSchema = new mongoose.Schema({
   level: { type: String, enum: LEVELS, required: true },
   group: { type: String, enum: GROUPS, required: true },
@@ -123,6 +118,31 @@ const metaDataSchema = new mongoose.Schema({
   mainChapter: { // The primary chapter this creative question belongs to.
     _id: { type: mongoose.Schema.Types.ObjectId, ref: 'Chapter', required: true },
     name: { type: String, required: true } // Denormalized for query performance
+  },
+  aliases:{
+    en:{
+      type:[String],
+      required:true
+    },
+    bn:{
+      type:[String],
+      required:true
+    },
+    banglish:{
+      type:[String],
+      required:true
+    }
+
+  },
+  tags:{
+    en:{
+      type:[String],
+      required:true
+    },
+    bn:{
+      type:[String],
+      required:true
+    }
   },
 }, { _id: false });
 
@@ -142,31 +162,38 @@ const creativeQuestionSchema = new mongoose.Schema({
     type: metaDataSchema,
     required: true
   },
-  aliases:{
-    en:{
-      type:String,
-      required:true
-    },
-    bn:{
-      type:String,
-      required:true
-    },
-    banglish:{
-      type:String,
-      required:true
-    }
+  // NEW FIELD START
+  status:{
+    type:String,
+    enum:['PUBLISHED','DRAFT','UNDER_REVIEW'],
+    default:'DRAFT'
+  },
+  // NEW FIELD END
+  // aliases:{
+  //   en:{
+  //     type:String,
+  //     required:true
+  //   },
+  //   bn:{
+  //     type:String,
+  //     required:true
+  //   },
+  //   banglish:{
+  //     type:String,
+  //     required:true
+  //   }
 
-  },
-  tags:{
-    en:{
-      type:[String],
-      required:true
-    },
-    bn:{
-      type:[String],
-      required:true
-    }
-  },
+  // },
+  // tags:{
+  //   en:{
+  //     type:[String],
+  //     required:true
+  //   },
+  //   bn:{
+  //     type:[String],
+  //     required:true
+  //   }
+  // },
   // Renamed parts for better readability, reflecting the educational structure.
   a: partSchema,      
   b: partSchema, 
@@ -186,7 +213,6 @@ creativeQuestionSchema.index({ 'source.sourceType': 1, 'source.year': -1, 'sourc
 // Indexes to efficiently find questions related to a specific topic in the higher-level parts.
 creativeQuestionSchema.index({ 'c.topics.topicId': 1 });
 creativeQuestionSchema.index({ 'd.topics.topicId': 1 });
-creativeQuestionSchema.index({a:'text',b:'text',c:'text',d:'text'});
 const CreativeQuestion = academicDb.model('CreativeQuestion', creativeQuestionSchema);
 export default CreativeQuestion;
 

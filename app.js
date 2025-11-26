@@ -15,6 +15,7 @@ import b2Router from "./routes/b2.routes.js";
 import splitText from "./langchain/index.js";
 import messageRouter from "./routes/message.routes.js";
 import { searchSimilarChunks } from "./langchain/index.js";
+import uploadRouter from './routes/upload.routes.js';
 
 const initializeApp = async () => {
     const app = express();
@@ -65,6 +66,7 @@ const initializeApp = async () => {
     app.use("/api/v1/ai", aiRouter);
     app.use("/api/v1/subject", subjectRouter); // Use the subject router
     app.use("/api/v1/b2", b2Router);
+    app.use("/api/v1/upload", uploadRouter);
     app.get('/langchain', testing)
     app.post('/langchain',async (req,res)=>{
        const r= await searchSimilarChunks(req.body.query)
