@@ -10,11 +10,16 @@ import {
   extractQuestions,
   extractTopicFromImage,
   uploadSingleImage, 
-  extractArticleFromImage
+  extractArticleFromImage,
+  translateText,
+  generateMetadataController
 } from "../controllers/ai.controller.js";
 import { extractArticle } from "../services/aiService.js";
 
 const router = Router();
+
+router.post("/translate", translateText);
+router.post("/generate-metadata", generateMetadataController);
 
 router.post(
   "/extract-cq",

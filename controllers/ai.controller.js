@@ -1,8 +1,7 @@
 
 import { findSimilarDocsBySubjectChapterAndTopic, createEmbeddingsForSubjectsChaptersAndTopics , findSimilarDocsWithParsedContent,createEmbeddings } from "../services/aiRag.service.js";
-import {extractTopic, extractArticle} from '../services/aiService.js' 
+import { extractTopic, extractArticle, extractQuestionsFromImages, extractAnswersFromImages, generateMetadata, translateText as serviceTranslateText } from '../services/aiService.js';
 import { validateImageUpload, validateFileSizes, cleanupFiles } from "../utils/file.utils.js";
-import { extractQuestionsFromImages, extractAnswersFromImages } from "../services/aiService.js";
 import embeddings from "../services/aiEmbedding.service.js";
 import { uploadImage } from "../utils/cloudinary.js"; // Import uploadImage
 export const createEmbedingsForSubjectsChaptersAndTopics = async (req, res) => {
@@ -80,7 +79,8 @@ export async function extractQuestions(req, res) {
   }
  
   try {
-    const questions = await extractQuestionsFromImages(req.files.qb);
+    const { numBlocks, customInstructions } = req.body;
+    const questions = await extractQuestionsFromImages(req.files.qb, { numBlocks, customInstructions });
     
     return res.status(200).json({
       success: true,
@@ -113,7 +113,8 @@ export async function extractAnswers(req, res) {
   }
  console.log(true)
   try {
-    const answers = await extractAnswersFromImages(req.files.qb);
+    const { numBlocks, customInstructions, partConfigs } = req.body;
+    const answers = await extractAnswersFromImages(req.files.qb, { numBlocks, customInstructions, partConfigs });
     
     return res.status(200).json({
       success: true,
@@ -199,4 +200,77 @@ const englishSentence = `
   const englishEmbed = await embeddings.embedQuery(englishSentence)
   const banglaEmbed = await embeddings.embedQuery(banglaSentence)
   return {embeddings:[englishEmbed,banglaEmbed], chunks:{english:englishSentence ,bangla:banglaSentence}}
+}
+
+/**
+ * Translates text between English and Bangla.
+ * @route POST /ai/translate
+ */
+export async function translateText(req, res) {
+  try {
+    const { text, targetLang } = req.body;
+
+    if (!text || !targetLang) {
+      return res.status(400).json({
+        success: false,
+        message: "Text and targetLang are required.",
+      });
+    }
+
+    // Import dynamically to avoid circular dependency issues if any, though standard import is fine here.
+    // Using the imported function from top of file if available, or importing here.
+    // We need to make sure `translateText` is imported from aiService.js
+    // I will add the import to the top of the file in a separate step or assume it's available if I update imports.
+    // For now, I'll rely on updating the imports in the next step or previous step.
+    // Wait, I haven't updated imports in ai.controller.js yet. I should do that.
+    
+    // Actually, I'll just use the service function. I need to update imports first.
+    // Let's just add the function here and I'll update imports in a separate call or same call if I can.
+    // Since I can't do multiple non-contiguous edits easily with replace_file_content, I'll do it in two steps.
+    // This step adds the function.
+    
+    // Wait, I can't call the service function if I don't import it.
+    // I'll assume I will update the import in the next step.
+    
+    const { translateText: serviceTranslateText } = await import("../services/aiService.js");
+
+    const translatedText = await serviceTranslateText(text, targetLang);
+
+    return res.status(200).json({
+      success: true,
+      data: { translatedText },
+    });
+
+  } catch (error) {
+    console.error("Error in translateText controller:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Translation failed.",
+    });
+  }
+}
+
+/**
+ * Generates metadata (aliases and tags) for a Creative Question.
+ * @route POST /ai/generate-metadata
+ */
+export async function generateMetadataController(req, res) {
+    try {
+        const context = req.body;
+        console.log("Received metadata generation request:", context);
+
+        const metadata = await generateMetadata(context);
+
+        return res.status(200).json({
+            success: true,
+            data: metadata,
+        });
+
+    } catch (error) {
+        console.error("Error in generateMetadataController:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to generate metadata.",
+        });
+    }
 }

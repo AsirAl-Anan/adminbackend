@@ -31,13 +31,13 @@ function parseBodyMiddleware(req, res, next) {
 }
 
 
-// POST /api/questions - Create a new question
+
 router.post('/', parseBodyMiddleware, addQuestion);
 
-// GET /api/questions/:id - Get a single question by ID
+
 router.get('/:id', getQuestion);
 
-// GET /api/questions/subject/:subjectId - Get all questions for a subject
+
 router.get('/subject/:subjectId', getQuestionsBySubject);
 
 // PUT /api/questions/:id - Update a question by ID

@@ -99,6 +99,7 @@ const configurations = {
     { name: 'documents', maxCount: 8 },
     { name: 'topic', maxCount: 6 },
     { name: 'article', maxCount: 6 },
+    { name: 'qb', maxCount: 10 },
   ]),
   
   // Any files

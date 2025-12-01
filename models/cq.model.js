@@ -67,22 +67,12 @@ const partSchema = new mongoose.Schema({
   topics: [{
     _id: false,
     topicId: { type: mongoose.Schema.Types.ObjectId, ref: 'Topic', required: true },
-    weight: {
-      type: Number,
-      default: 1,
-      max: 5,
-      min: 1,
-    }
+   
   }],
   types: [{
     _id: false,
     typeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Type', required: true },
-    weight: {
-      type: Number,
-      default: 1,
-      max: 5,
-      min: 1
-    }
+    
   }],
 });
 
