@@ -21,6 +21,7 @@ router.delete("/chapters/:id", subjectController.deleteChapter);
 
 // ----------------- Topic Routes -----------------
 router.post("/chapters/:chapterId/topics", subjectController.createTopic);
+router.post("/chapters/:chapterId/topics/bulk", subjectController.bulkCreateTopics);
 // NEW: Get topics for a specific chapter for CQ creation Step 3
 router.get("/chapters/:chapterId/topics", subjectController.getTopicsByChapter);
 router.put("/topics/:id", subjectController.updateTopic);

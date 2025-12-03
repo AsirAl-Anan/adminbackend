@@ -4,8 +4,8 @@ import { academicDb } from "../config/db.config.js";
 // new schema
 const questionTypeSchema = new mongoose.Schema({
   name: {
-    en: { type: String, required: true },
-    bn: { type: String, required: true },
+    en: { type: String,  },
+    bn: { type: String, },
   },
   description: {
     en: { type: String },
@@ -87,13 +87,13 @@ const topicSchema = new mongoose.Schema({
             bn: { type: String },
           },
           images: [{
-            url: { type: String, required: true },
+            url: { type: String,  },
             caption: { en: String, bn: String },
             description: { en: String, bn: String },
             order: Number,
           }],
           videos: [{
-            url: { type: String, required: true },
+            url: { type: String, },
             platform: { type: String, enum: ["YOUTUBE", "FACEBOOK"] },
             caption: { en: String, bn: String },
             videoId: { type: String },

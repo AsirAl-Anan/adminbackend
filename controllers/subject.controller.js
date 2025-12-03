@@ -116,6 +116,20 @@ export const createTopic = async (req, res, next) => {
   }
 };
 
+export const bulkCreateTopics = async (req, res, next) => {
+  try {
+    const { subjectId, topics } = req.body;
+    const createdTopics = await subjectService.bulkCreateTopics(
+      req.params.chapterId,
+      subjectId,
+      topics
+    );
+    res.status(201).json(createdTopics);
+  } catch (error) {
+    next(error);
+  }
+};
+
 // NEW: Get topics for a chapter
 export const getTopicsByChapter = async (req, res, next) => {
     try {

@@ -254,6 +254,39 @@ export const createTopic = async (chapterId, topicData) => {
   return topic;
 };
 
+export const bulkCreateTopics = async (chapterId, subjectId, topicsData) => {
+  const chapter = await Chapter.findById(chapterId);
+  if (!chapter) {
+    throw new AppError("Chapter not found", 404);
+  }
+
+  const createdTopics = [];
+  const topicIds = [];
+
+  for (const topicData of topicsData) {
+    const topic = new Topic({
+      name: topicData.name,
+      chapterId,
+      subjectId,
+      // Initialize other required fields with defaults or empty values if needed
+      articles: [], 
+      tags: [],
+      aliases: { english: [], bangla: [], banglish: [] }
+    });
+    
+    await topic.save();
+    createdTopics.push(topic);
+    topicIds.push(topic._id);
+  }
+
+  // Update the chapter with the new topic IDs
+  await Chapter.findByIdAndUpdate(chapterId, {
+    $push: { topics: { $each: topicIds } },
+  });
+
+  return createdTopics;
+};
+
 export const updateTopic = async (id, topicData) => {
   const existingTopic = await Topic.findById(id);
   if (!existingTopic) {

@@ -41,6 +41,7 @@ const initializeApp = async () => {
 
     const sessionMiddleware = session({
       store: new RedisStore({ client: redisClient }),
+      name: "admin",
       secret: process.env.SESSION_SECRET,
       resave: false,
       saveUninitialized: false,

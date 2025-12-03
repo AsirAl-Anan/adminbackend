@@ -2,8 +2,9 @@ import Admin from "../models/admin.model.js";
 
 export const loginAdmin = async (email, password) => {
     try {
+        
         let admin = await Admin.findOne({ email }).select("+password");
-
+     console.log(admin);
         if (!admin) {
             return "no-admin";
         }
