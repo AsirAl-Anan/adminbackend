@@ -5,6 +5,7 @@ const router = express.Router();
 
 // ----------------- Subject Routes -----------------
 router.post("/subjects", subjectController.createSubject);
+router.post("/subjects/full", subjectController.createSubjectFull); // NEW: Bulk create full subject tree
 router.get("/subjects", subjectController.getAllSubjects);
 // NEW: Get subjects by level and group for CQ creation Step 1
 router.get("/subjects/filter", subjectController.getSubjectsByFilter);

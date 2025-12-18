@@ -6,6 +6,10 @@ import jwt from "jsonwebtoken"
 // Ensure you have this in your .env file
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key";
 
+const CLIENT_URL = process.env.NODE_ENV === "production"
+  ? process.env.CLIENT_URL_PRODUCTION
+  : process.env.CLIENT_URL_DEVELOPMENT;
+
 export const adminLoginController = async (req, res) => {
   const { email, password } = req.body;
 
@@ -140,6 +144,9 @@ const oAuth2Client = new OAuth2Client(
   process.env.AUTH_CLIENT_SECRET,
   process.env.AUTH_REDIRECT_URI
 );
+console.log("oAuth2Client id",process.env.AUTH_CLIENT_ID )
+console.log("oAuth2Client secret",process.env.AUTH_CLIENT_SECRET )
+console.log("oAuth2Client redirect uri",process.env.AUTH_REDIRECT_URI )
 export const adminGoogleController = async (req, res) => {
   try {
 
@@ -158,14 +165,16 @@ export const adminGoogleController = async (req, res) => {
   }
 }
 export const adminGoogleCallbackController = async (req, res) => {
-  console.log("inside callback")
+  console.log("inside google call back controller")
 
 
   const code = req.query.code;
+  console.log("code", code)
   try {
     const { tokens } = await oAuth2Client.getToken(code)
+    console.log("tokens from google", tokens)
     if (!tokens.access_token) {
-      return res.redirect("http://localhost:5173/login?error=Invalid code")
+      return res.redirect(`${CLIENT_URL}/login?error=Invalid code`)
     }
     oAuth2Client.setCredentials(tokens);
     req.session.access_tokens = tokens;
@@ -179,14 +188,14 @@ export const adminGoogleCallbackController = async (req, res) => {
     const userData = ticket.getPayload();
 
     if (!userData) {
-      return res.redirect("http://localhost:5173/login?error=Invalid token")
+      return res.redirect(`${CLIENT_URL}/login?error=Invalid token`)
     }
     const email = userData.email;
 
     const admin = await Admin.findOne({ email }).select("email");
 
     if (!admin) {
-      return res.redirect("http://localhost:5173/login?error=Admin not found")
+      return res.redirect(`${CLIENT_URL}/login?error=Admin not found`)
     }
 
     // --- CHANGE START: Sign Email with JWT ---
@@ -202,10 +211,10 @@ export const adminGoogleCallbackController = async (req, res) => {
     // --- CHANGE END ---
 
     console.log("Cookie set with JWT");
-    res.redirect("http://localhost:5173/login?email=" + admin.email)
+    res.redirect(`${CLIENT_URL}/login?email=` + admin.email)
 
   } catch (error) {
     console.error("Google Auth Error:", error);
-    res.redirect("http://localhost:5173/login?error=Internal Server Error")
+    res.redirect(`${CLIENT_URL}/login?error=Internal Server Error`)
   }
 }

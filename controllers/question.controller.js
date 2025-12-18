@@ -91,3 +91,24 @@ export const getQuestionsBySubject = async (req, res) => {
         handleControllerError(res, error, 'Error fetching questions by subject.');
     }
 };
+
+// Bulk ingest questions
+export const bulkIngestQuestions = async (req, res) => {
+    try {
+        const files = req.files;
+        const { year, subjectId } = req.body;
+
+        if (!files || files.length === 0) {
+            return res.status(400).json({ success: false, message: 'No files uploaded.' });
+        }
+
+        const result = await questionService.bulkIngestQuestions(files, year, subjectId);
+
+        // Even if some failed, return 200 with partial results, or 207 Multi-Status?
+        // Using 200 with detailed results array is easier for client.
+        res.status(200).json(result);
+
+    } catch (error) {
+        handleControllerError(res, error, 'Error processing bulk ingestion.');
+    }
+};

@@ -3,6 +3,7 @@ import CreativeQuestion from '../models/cq.model.js';
 import Subject from '../models/subject.model.js';
 import Chapter from '../models/chapter.model.js';
 import mongoose from 'mongoose';
+import * as aiService from './aiService.js';
 
 /**
  * Handles Mongoose validation errors by creating a structured response.
@@ -62,13 +63,13 @@ export const createQuestion = async (questionData) => {
 
         // --- IMPORTANT: Denormalization ---
         // Add the fetched names to the metadata before saving.
-        questionData.meta.subject.name = subject.name.en; 
-        questionData.meta.mainChapter.name = mainChapter.name.en; 
+        questionData.meta.subject.name = subject.name.en;
+        questionData.meta.mainChapter.name = mainChapter.name.en;
 
         // --- Sanitization of Content Blocks ---
         // Ensure consistent ordering and structure for block-based fields
         if (questionData.stem) questionData.stem = cleanBlocks(questionData.stem);
-        
+
         ['a', 'b', 'c', 'd'].forEach(part => {
             if (questionData[part]) {
                 if (questionData[part].question) questionData[part].question = cleanBlocks(questionData[part].question);
@@ -78,7 +79,7 @@ export const createQuestion = async (questionData) => {
 
         const newQuestion = new CreativeQuestion(questionData);
         const savedQuestion = await newQuestion.save();
-        
+
         return { success: true, message: 'Creative Question created successfully.', data: savedQuestion };
 
     } catch (error) {
@@ -142,8 +143,8 @@ export const updateQuestion = async (id, updateData) => {
         if (updateData.stem) updateData.stem = cleanBlocks(updateData.stem);
         ['a', 'b', 'c', 'd'].forEach(part => {
             if (updateData[part]) {
-                 if (updateData[part].question) updateData[part].question = cleanBlocks(updateData[part].question);
-                 if (updateData[part].answer) updateData[part].answer = cleanBlocks(updateData[part].answer);
+                if (updateData[part].question) updateData[part].question = cleanBlocks(updateData[part].question);
+                if (updateData[part].answer) updateData[part].answer = cleanBlocks(updateData[part].answer);
             }
         });
 
@@ -209,5 +210,119 @@ export const getQuestionsBySubject = async (subjectId) => {
     } catch (error) {
         console.error("Service Error - getQuestionsBySubject:", error);
         return { success: false, message: 'Error fetching questions by subject.', error: error.message };
+    }
+};
+
+/**
+ * Bulk ingest questions from uploaded images.
+ * @param {Array<Object>} files - List of uploaded files.
+ * @param {string} year - Year of the questions.
+ * @param {string} subjectId - ID of the subject.
+ * @returns {Promise<object>} Summary of processing.
+ */
+export const bulkIngestQuestions = async (files, year, subjectId) => {
+    try {
+        if (!files || files.length === 0) {
+            return { success: false, message: "No files uploaded.", statusCode: 400 };
+        }
+        if (!year) {
+            return { success: false, message: "Year is required.", statusCode: 400 };
+        }
+        if (!subjectId || !mongoose.Types.ObjectId.isValid(subjectId)) {
+            return { success: false, message: "Valid Subject ID is required.", statusCode: 400 };
+        }
+
+        const subject = await Subject.findById(subjectId).select('name level group').lean();
+        if (!subject) {
+            return { success: false, message: "Subject not found.", statusCode: 404 };
+        }
+
+        // Fetch chapters for lookup
+        const allChapters = await Chapter.find({ subjectId: subject._id }).select('name aliases _id').lean();
+
+        const findChapterId = (nameQuery) => {
+            if (!nameQuery) return null;
+            const normalizedQuery = nameQuery.toLowerCase().trim();
+            const match = allChapters.find(ch => {
+                if (ch.name?.en?.toLowerCase() === normalizedQuery) return true;
+                if (ch.name?.bn === nameQuery) return true;
+                if (ch.aliases?.english?.some(a => a.toLowerCase() === normalizedQuery)) return true;
+                if (ch.aliases?.bangla?.some(a => a === nameQuery)) return true;
+                if (ch.aliases?.banglish?.some(a => a.toLowerCase() === normalizedQuery)) return true;
+                return false;
+            });
+            return match ? match._id : null;
+        };
+
+        const results = [];
+        // Process sequentially to manage resources
+        for (const file of files) {
+            try {
+                const aiResponse = await aiService.extractBulkQuestion([file], { year, subjectName: subject.name.en });
+                if (!aiResponse.success || !aiResponse.data) {
+                    throw new Error("AI Extraction returned empty data.");
+                }
+
+                const aiData = aiResponse.data;
+                const meta = aiData.extractedMetadata;
+                const mainChapterId = findChapterId(meta.mainChapter);
+
+                // Prepare Data
+                const questionData = {
+                    stem: aiData.stem,
+                    a: { ...aiData.a, marks: 1, chapter: findChapterId(meta.partChapters?.a) },
+                    b: { ...aiData.b, marks: 2, chapter: findChapterId(meta.partChapters?.b) },
+                    c: { ...aiData.c, marks: 3, chapter: findChapterId(meta.partChapters?.c) },
+                    d: { ...aiData.d, marks: 4, chapter: findChapterId(meta.partChapters?.d) },
+                    source: {
+                        source: {
+                            sourceType: 'BOARD',
+                            value: meta.board || 'Unknown Board',
+                        },
+                        year: parseInt(year),
+                        examType: '',
+                    },
+                    meta: {
+                        level: subject.level,
+                        group: subject.group,
+                        subject: { _id: subject._id, name: subject.name.en },
+                        mainChapter: {
+                            _id: mainChapterId,
+                            name: meta.mainChapter
+                        },
+                        aliases: meta.aliases,
+                        tags: meta.tags,
+                    },
+                    status: 'DRAFT',
+                };
+
+                if (!mainChapterId) {
+                    // Log warning but allow creation? Or fail? 
+                    // User requirement says "Identify the chapter name... according to NCTB".
+                    // If we strictly fail, it might be annoying. But current schema REQUIRES mainChapter._id.
+                    // So we must allow it to fail or skip.
+                    // Let's throwing error for now as 'mainChapter' is required in Schema.
+                    throw new Error(`Main Chapter '${meta.mainChapter}' not found in database.`);
+                }
+
+                const saveResult = await createQuestion(questionData);
+
+                if (saveResult.success) {
+                    results.push({ file: file.originalname, status: 'success', id: saveResult.data._id });
+                } else {
+                    results.push({ file: file.originalname, status: 'failed', message: saveResult.message, error: saveResult.error });
+                }
+
+            } catch (error) {
+                console.error(`Error processing file ${file.originalname}:`, error);
+                results.push({ file: file.originalname, status: 'failed', error: error.message });
+            }
+        }
+
+        return { success: true, results };
+
+    } catch (error) {
+        console.error("Service Error - bulkIngestQuestions:", error);
+        return { success: false, message: 'Bulk ingestion failed.', error: error.message };
     }
 };

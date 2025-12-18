@@ -4,12 +4,12 @@ import { academicDb } from "../config/db.config.js";
 // new schema
 const questionTypeSchema = new mongoose.Schema({
   name: {
-    en: { type: String,  },
+    en: { type: String, },
     bn: { type: String, },
   },
   description: {
     en: { type: String },
-    bn: { type: String  },
+    bn: { type: String },
   },
 });
 
@@ -19,13 +19,11 @@ const topicSchema = new mongoose.Schema({
   subjectId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Subject",
-    required: true,
     index: true,
   },
   chapterId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Chapter",
-    required: true,
     index: true,
   },
 
@@ -33,8 +31,8 @@ const topicSchema = new mongoose.Schema({
 
   // --- Core Information  ---
   name: {
-    en: { type: String, required: true, trim: true },
-    bn: { type: String, required: true, trim: true },
+    en: { type: String, trim: true },
+    bn: { type: String, trim: true },
   },
   description: {
     en: { type: String, trim: true },
@@ -87,7 +85,7 @@ const topicSchema = new mongoose.Schema({
             bn: { type: String },
           },
           images: [{
-            url: { type: String,  },
+            url: { type: String, },
             caption: { en: String, bn: String },
             description: { en: String, bn: String },
             order: Number,
@@ -115,7 +113,7 @@ const topicSchema = new mongoose.Schema({
           }],
         }
       ],
-      
+
       // These fields are unchanged
       relatedCreativeQuestions: [{
         type: mongoose.Schema.Types.ObjectId,

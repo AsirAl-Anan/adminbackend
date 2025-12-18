@@ -61,14 +61,14 @@ const creativeQuestionSchema = z.object({
 
 // Schema for Answers
 const createAnswerPartSchema = () => z.object({
-    answer: createContentBlockSchema().describe("The answer content."),
+  answer: createContentBlockSchema().describe("The answer content."),
 });
 
 const creativeQuestionAnswerSchema = z.object({
-    a: createAnswerPartSchema().describe("Answer for Part A"),
-    b: createAnswerPartSchema().describe("Answer for Part B"),
-    c: createAnswerPartSchema().describe("Answer for Part C"),
-    d: createAnswerPartSchema().describe("Answer for Part D"),
+  a: createAnswerPartSchema().describe("Answer for Part A"),
+  b: createAnswerPartSchema().describe("Answer for Part B"),
+  c: createAnswerPartSchema().describe("Answer for Part C"),
+  d: createAnswerPartSchema().describe("Answer for Part D"),
 });
 
 
@@ -83,9 +83,9 @@ const createModel = (structuredOutputSchema) => {
     apiKey: GEMINI_API_KEY,
     temperature: 0.1,
   });
-  
+
   if (structuredOutputSchema) {
-      return llm.withStructuredOutput(structuredOutputSchema);
+    return llm.withStructuredOutput(structuredOutputSchema);
   }
   return llm;
 };
@@ -94,15 +94,15 @@ const createModel = (structuredOutputSchema) => {
  * Helper to prepare image messages for LangChain.
  */
 const prepareImageMessages = async (images) => {
-    return Promise.all(
-        images.map(async (image) => {
-            const imageBuffer = await fs.readFile(image.path);
-            return {
-                type: "image_url",
-                image_url: { url: `data:${getMimeTypeFromPath(image.path)};base64,${imageBuffer.toString("base64")}` },
-            };
-        })
-    );
+  return Promise.all(
+    images.map(async (image) => {
+      const imageBuffer = await fs.readFile(image.path);
+      return {
+        type: "image_url",
+        image_url: { url: `data:${getMimeTypeFromPath(image.path)};base64,${imageBuffer.toString("base64")}` },
+      };
+    })
+  );
 };
 
 // --- Exported Functions ---
@@ -116,14 +116,14 @@ const prepareImageMessages = async (images) => {
 export async function extractQuestionsFromImages(files, options = {}) {
   console.log("Extracting questions from images...", options);
   const { numBlocks, customInstructions } = options;
-  
+
   try {
     const structuredLlm = createModel(creativeQuestionSchema);
     const imageMessages = await prepareImageMessages(files);
 
     let segmentationInstruction = "Organize content into logical blocks (paragraphs, math steps, verdict). Do NOT split single paragraphs into multiple blocks.";
     if (numBlocks && numBlocks > 0) {
-        segmentationInstruction = `Organize the content into exactly ${numBlocks} logical blocks.`;
+      segmentationInstruction = `Organize the content into exactly ${numBlocks} logical blocks.`;
     }
 
     const ocrPrompt = PromptTemplate.fromTemplate(
@@ -145,16 +145,16 @@ export async function extractQuestionsFromImages(files, options = {}) {
     );
 
     const chain = RunnableSequence.from([
-        async () => {
-            const msg = new HumanMessage({
-                content: [
-                    { type: "text", text: ocrPrompt.template },
-                    ...imageMessages,
-                ]
-            });
-            return [msg];
-        },
-        structuredLlm
+      async () => {
+        const msg = new HumanMessage({
+          content: [
+            { type: "text", text: ocrPrompt.template },
+            ...imageMessages,
+          ]
+        });
+        return [msg];
+      },
+      structuredLlm
     ]);
 
     console.log("Invoking AI chain for question extraction...");
@@ -175,11 +175,11 @@ export async function extractQuestionsFromImages(files, options = {}) {
  * Helper to perform OCR and Translation (Step 1 of Pipeline).
  */
 async function extractRawTextWithOCR(files, customInstructions) {
-    const llm = createModel(); // Non-structured for raw text
-    const imageMessages = await prepareImageMessages(files);
+  const llm = createModel(); // Non-structured for raw text
+  const imageMessages = await prepareImageMessages(files);
 
-    const ocrPrompt = PromptTemplate.fromTemplate(
-        `You are an expert OCR and translation agent for Bangladeshi curriculum (NCTB).
+  const ocrPrompt = PromptTemplate.fromTemplate(
+    `You are an expert OCR and translation agent for Bangladeshi curriculum (NCTB).
       1. Extract ALL text from the provided image(s).
       2. **Formatting Rules**:
          - Format all mathematical expressions, symbols, and variables strictly in LaTeX (e.g., $F=ma$).
@@ -195,26 +195,26 @@ async function extractRawTextWithOCR(files, customInstructions) {
       ${customInstructions ? `5. **User Instructions**: ${customInstructions}` : ""}
       
       Return the raw translated text. Do not attempt to structure it into JSON yet.`
-    );
+  );
 
-    const chain = RunnableSequence.from([
-        async () => {
-            const msg = new HumanMessage({
-                content: [
-                    { type: "text", text: ocrPrompt.template },
-                    ...imageMessages,
-                ]
-            });
-            return [msg];
-        },
-        llm,
-        new StringOutputParser()
-    ]);
+  const chain = RunnableSequence.from([
+    async () => {
+      const msg = new HumanMessage({
+        content: [
+          { type: "text", text: ocrPrompt.template },
+          ...imageMessages,
+        ]
+      });
+      return [msg];
+    },
+    llm,
+    new StringOutputParser()
+  ]);
 
-    console.log("Invoking Step 1: OCR & Translation...");
-    const result = await chain.invoke({});
-    console.log("Step 1 Complete.");
-    return result;
+  console.log("Invoking Step 1: OCR & Translation...");
+  const result = await chain.invoke({});
+  console.log("Step 1 Complete.");
+  return result;
 }
 
 /**
@@ -224,29 +224,29 @@ async function extractRawTextWithOCR(files, customInstructions) {
  * @returns {Promise<Object>} A promise that resolves to the extracted answer object.
  */
 export async function extractAnswersFromImages(files, options = {}) {
-    console.log("Extracting answers from images...", options);
-    const { partConfigs, customInstructions } = options;
+  console.log("Extracting answers from images...", options);
+  const { partConfigs, customInstructions } = options;
 
-    // Parse partConfigs if it's a string (which it might be from FormData)
-    let parsedConfigs = partConfigs;
-    if (typeof partConfigs === 'string') {
-        try {
-            parsedConfigs = JSON.parse(partConfigs);
-        } catch (e) {
-            parsedConfigs = { a: 0, b: 0, c: 0, d: 0 };
-        }
-    } else if (!parsedConfigs) {
-        parsedConfigs = { a: 0, b: 0, c: 0, d: 0 };
-    }
-
+  // Parse partConfigs if it's a string (which it might be from FormData)
+  let parsedConfigs = partConfigs;
+  if (typeof partConfigs === 'string') {
     try {
-        // Step 1: OCR and Translate
-        const rawText = await extractRawTextWithOCR(files, customInstructions);
+      parsedConfigs = JSON.parse(partConfigs);
+    } catch (e) {
+      parsedConfigs = { a: 0, b: 0, c: 0, d: 0 };
+    }
+  } else if (!parsedConfigs) {
+    parsedConfigs = { a: 0, b: 0, c: 0, d: 0 };
+  }
 
-        // Step 2: Structure into JSON
-        const structuredLlm = createModel(creativeQuestionAnswerSchema);
+  try {
+    // Step 1: OCR and Translate
+    const rawText = await extractRawTextWithOCR(files, customInstructions);
 
-        let segmentationInstructions = `
+    // Step 2: Structure into JSON
+    const structuredLlm = createModel(creativeQuestionAnswerSchema);
+
+    let segmentationInstructions = `
       Segment the content into clear, meaningful blocks (paragraphs, math steps, verdict).
       Here are the generalised rules of blocks:
       The Srijonshil, or creative question system, implemented by the National Curriculum and Textbook Board (NCTB) of Bangladesh, is designed to assess a student's cognitive abilities beyond rote memorization. This system is structured around a stimulus (a passage, image, or scenario) followed by four distinct questions, labeled a, b, c, and d. Each of these parts targets a different level of thinking, based on Bloom's Taxonomy, and follows a specific paragraph-based structure for answering.
@@ -290,17 +290,17 @@ Para-Based System: A four-paragraph structure allows for a thorough and well-rea
       **Specific Block Counts per Part:**
       `;
 
-        ['a', 'b', 'c', 'd'].forEach(part => {
-            const count = parsedConfigs[part];
-            if (count > 0) {
-                segmentationInstructions += `- Part ${part.toUpperCase()}: Exactly ${count} blocks.\n`;
-            } else {
-                segmentationInstructions += `- Part ${part.toUpperCase()}: Auto-detect logical blocks (do not over-segment).\n`;
-            }
-        });
+    ['a', 'b', 'c', 'd'].forEach(part => {
+      const count = parsedConfigs[part];
+      if (count > 0) {
+        segmentationInstructions += `- Part ${part.toUpperCase()}: Exactly ${count} blocks.\n`;
+      } else {
+        segmentationInstructions += `- Part ${part.toUpperCase()}: Auto-detect logical blocks (do not over-segment).\n`;
+      }
+    });
 
-        const structuringPrompt = PromptTemplate.fromTemplate(
-            `You are an expert academic content structurer.
+    const structuringPrompt = PromptTemplate.fromTemplate(
+      `You are an expert academic content structurer.
       Analyze the following text (which has been extracted from an image) and structure it into the required JSON format for a Creative Question Answer.
 
       **Input Text:**
@@ -315,118 +315,118 @@ Para-Based System: A four-paragraph structure allows for a thorough and well-rea
          - Maintain proper text formatting with line breaks where appropriate.
       4. Return the result strictly as a structured JSON object matching the schema.
       `
-        );
+    );
 
-        const chain = RunnableSequence.from([
-            { rawText: () => rawText },
-            structuringPrompt,
-            structuredLlm
-        ]);
+    const chain = RunnableSequence.from([
+      { rawText: () => rawText },
+      structuringPrompt,
+      structuredLlm
+    ]);
 
-        console.log("Invoking Step 2: Structuring...");
-        const result = await chain.invoke({});
-        console.log("Answer extraction complete.");
+    console.log("Invoking Step 2: Structuring...");
+    const result = await chain.invoke({});
+    console.log("Answer extraction complete.");
 
-        return result;
+    return result;
 
-    } catch (error) {
-        console.error("Error in extractAnswersFromImages:", error);
-        throw error;
-    } finally {
-        await cleanupFiles(files, true);
-    }
+  } catch (error) {
+    console.error("Error in extractAnswersFromImages:", error);
+    throw error;
+  } finally {
+    await cleanupFiles(files, true);
+  }
 }
 
 /**
  * Dynamically creates a Zod schema for topic extraction based on user-defined exclusions.
  */
 const createDynamicTopicSchema = (excludedFields = []) => {
-    // Helper function to create the formula schema inline
-    const createFormulaSchema = () => z.object({
-        name: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Name of the formula."),
-        equation: z.string().describe("The mathematical formula or equation in LaTeX format (e.g., '$F=ma$')."),
-        description: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Description of the formula."),
-        derivation: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Derivation of the formula, can be Markdown/HTML."),
-        variables: z.array(z.object({
-            symbol: z.string().describe("The symbol of the variable (e.g., 'F', 'm', 'a')."),
-            definition: z.object({
-                en: z.string().describe("The text in English."),
-                bn: z.string().describe("The text in Bangla."),
-            }).optional().describe("Definition of the variable."),
-            unit: z.object({
-                en: z.string().describe("The text in English."),
-                bn: z.string().describe("The text in Bangla."),
-            }).optional().describe("Unit of the variable (e.g., 'meters/second').")
-        })).optional().describe("List of variables used in the formula."),
-    });
+  // Helper function to create the formula schema inline
+  const createFormulaSchema = () => z.object({
+    name: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Name of the formula."),
+    equation: z.string().describe("The mathematical formula or equation in LaTeX format (e.g., '$F=ma$')."),
+    description: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Description of the formula."),
+    derivation: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Derivation of the formula, can be Markdown/HTML."),
+    variables: z.array(z.object({
+      symbol: z.string().describe("The symbol of the variable (e.g., 'F', 'm', 'a')."),
+      definition: z.object({
+        en: z.string().describe("The text in English."),
+        bn: z.string().describe("The text in Bangla."),
+      }).optional().describe("Definition of the variable."),
+      unit: z.object({
+        en: z.string().describe("The text in English."),
+        bn: z.string().describe("The text in Bangla."),
+      }).optional().describe("Unit of the variable (e.g., 'meters/second').")
+    })).optional().describe("List of variables used in the formula."),
+  });
 
-    const sectionDefinition = {
-        title: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).describe("Title of the section."),
-        body: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Body content of the section, can be Markdown/HTML."),
-    };
-    if (!excludedFields.includes('formulas')) {
-        sectionDefinition.formulas = z.array(createFormulaSchema()).optional().describe("Formulas relevant to this section.");
-    }
+  const sectionDefinition = {
+    title: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).describe("Title of the section."),
+    body: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Body content of the section, can be Markdown/HTML."),
+  };
+  if (!excludedFields.includes('formulas')) {
+    sectionDefinition.formulas = z.array(createFormulaSchema()).optional().describe("Formulas relevant to this section.");
+  }
 
-    const articleDefinition = {
-        body: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("General body content of the article, can be Markdown/HTML."),
-        sections: z.array(z.object(sectionDefinition)).optional().describe("Sections within this article.")
-    };
-    if (!excludedFields.includes('learningOutcomes')) {
-        articleDefinition.learningOutcomes = z.object({
-            en: z.array(z.string()).describe("English learning outcomes for the article."),
-            bn: z.array(z.string()).describe("Bangla learning outcomes for the article."),
-        }).optional();
-    }
-    if (!excludedFields.includes('formulas')) {
-        articleDefinition.formulas = z.array(createFormulaSchema()).optional().describe("Master list of formulas for this article.");
-    }
+  const articleDefinition = {
+    body: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("General body content of the article, can be Markdown/HTML."),
+    sections: z.array(z.object(sectionDefinition)).optional().describe("Sections within this article.")
+  };
+  if (!excludedFields.includes('learningOutcomes')) {
+    articleDefinition.learningOutcomes = z.object({
+      en: z.array(z.string()).describe("English learning outcomes for the article."),
+      bn: z.array(z.string()).describe("Bangla learning outcomes for the article."),
+    }).optional();
+  }
+  if (!excludedFields.includes('formulas')) {
+    articleDefinition.formulas = z.array(createFormulaSchema()).optional().describe("Master list of formulas for this article.");
+  }
 
-    const topicDefinition = {};
-    if (!excludedFields.includes('name')) {
-        topicDefinition.name = z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).describe("Name of the topic.");
-    }
-    if (!excludedFields.includes('description')) {
-        topicDefinition.description = z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Description of the topic.");
-    }
-    if (!excludedFields.includes('aliases')) {
-        topicDefinition.aliases = z.object({
-            english: z.array(z.string()).describe("Relevant search aliases in English."),
-            bangla: z.array(z.string()).describe("Relevant search aliases in Bangla."),
-            banglish: z.array(z.string()).describe("Relevant search aliases in Banglish (phonetic)."),
-        }).optional();
-    }
-    if (!excludedFields.includes('tags')) {
-        topicDefinition.tags = z.array(z.string()).optional().describe("Keywords or tags associated with the topic.");
-    }
+  const topicDefinition = {};
+  if (!excludedFields.includes('name')) {
+    topicDefinition.name = z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).describe("Name of the topic.");
+  }
+  if (!excludedFields.includes('description')) {
+    topicDefinition.description = z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Description of the topic.");
+  }
+  if (!excludedFields.includes('aliases')) {
+    topicDefinition.aliases = z.object({
+      english: z.array(z.string()).describe("Relevant search aliases in English."),
+      bangla: z.array(z.string()).describe("Relevant search aliases in Bangla."),
+      banglish: z.array(z.string()).describe("Relevant search aliases in Banglish (phonetic)."),
+    }).optional();
+  }
+  if (!excludedFields.includes('tags')) {
+    topicDefinition.tags = z.array(z.string()).optional().describe("Keywords or tags associated with the topic.");
+  }
 
-    topicDefinition.articles = z.array(z.object(articleDefinition)).describe("Array of articles within the topic.");
+  topicDefinition.articles = z.array(z.object(articleDefinition)).describe("Array of articles within the topic.");
 
-    return z.object(topicDefinition);
+  return z.object(topicDefinition);
 };
 
 
@@ -434,51 +434,51 @@ const createDynamicTopicSchema = (excludedFields = []) => {
  * Dynamically creates a prompt template for topic extraction based on user controls.
  */
 const createDynamicPromptTemplate = (controls) => {
-    const { excludedFields, customInstruction, articles, sections } = controls;
+  const { excludedFields, customInstruction, articles, sections } = controls;
 
-    let baseInstructions = [
-      "You are an expert academic content processor for Bangladeshi HSC/SSC students.",
-      "Analyze the text extracted from the provided images and generate a structured JSON output.",
-      "Ensure ALL mathematical expressions, symbols, and variables are strictly in LaTeX format (e.g., '$F=ma$').",
-      "Your final output must be ONLY a valid JSON object conforming to the provided schema. Do not include any other text or markdown formatting around the JSON."
-    ];
+  let baseInstructions = [
+    "You are an expert academic content processor for Bangladeshi HSC/SSC students.",
+    "Analyze the text extracted from the provided images and generate a structured JSON output.",
+    "Ensure ALL mathematical expressions, symbols, and variables are strictly in LaTeX format (e.g., '$F=ma$').",
+    "Your final output must be ONLY a valid JSON object conforming to the provided schema. Do not include any other text or markdown formatting around the JSON."
+  ];
 
-    let generationRules = [
-        `**Content Generation Rules:**`,
-        `1.  **Articles**: You MUST generate between ${articles.min} and ${articles.max} logical articles from the content.`,
-        `2.  **Sections**: For EACH article, you MUST generate between ${sections.min} and ${sections.max} logical sections.`
-    ];
+  let generationRules = [
+    `**Content Generation Rules:**`,
+    `1.  **Articles**: You MUST generate between ${articles.min} and ${articles.max} logical articles from the content.`,
+    `2.  **Sections**: For EACH article, you MUST generate between ${sections.min} and ${sections.max} logical sections.`
+  ];
 
-    if (customInstruction) {
-        generationRules.push(`3.  **Critical Custom Instruction**: You MUST strictly follow this high-priority instruction: "${customInstruction}"`);
+  if (customInstruction) {
+    generationRules.push(`3.  **Critical Custom Instruction**: You MUST strictly follow this high-priority instruction: "${customInstruction}"`);
+  }
+
+  const fieldInstructionMap = {
+    name: "- **name**: Create a concise name for the entire topic in both English and Bangla.",
+    description: "- **description**: Provide an overall summary description for the topic in both English and Bangla.",
+    aliases: "- **aliases**: Generate relevant search aliases (English, Bangla, Banglish).",
+    tags: "- **tags**: Generate relevant keywords or tags.",
+    learningOutcomes: "- **learningOutcomes**: For each article, list the key learning outcomes in English and Bangla.",
+    formulas: "- **formulas**: Extract all mathematical formulas. For each formula, provide its name, LaTeX equation, description, derivation (if present), and a list of all variables with their symbol, definition, and unit.",
+  };
+
+  let includedFieldInstructions = ["**JSON Field Instructions:**"];
+  for (const field of Object.keys(fieldInstructionMap)) {
+    if (!excludedFields.includes(field)) {
+      includedFieldInstructions.push(fieldInstructionMap[field]);
     }
+  }
+  includedFieldInstructions.push("- **articles & sections**: Logically divide the content into articles and then further into sections, each with a bilingual title and body text.");
 
-    const fieldInstructionMap = {
-        name: "- **name**: Create a concise name for the entire topic in both English and Bangla.",
-        description: "- **description**: Provide an overall summary description for the topic in both English and Bangla.",
-        aliases: "- **aliases**: Generate relevant search aliases (English, Bangla, Banglish).",
-        tags: "- **tags**: Generate relevant keywords or tags.",
-        learningOutcomes: "- **learningOutcomes**: For each article, list the key learning outcomes in English and Bangla.",
-        formulas: "- **formulas**: Extract all mathematical formulas. For each formula, provide its name, LaTeX equation, description, derivation (if present), and a list of all variables with their symbol, definition, and unit.",
-    };
+  const fullPrompt = [
+    ...baseInstructions,
+    ...generationRules,
+    ...includedFieldInstructions,
+    "\nHere is the OCR text:",
+    "{ocr_text}"
+  ].join("\n");
 
-    let includedFieldInstructions = ["**JSON Field Instructions:**"];
-    for (const field of Object.keys(fieldInstructionMap)) {
-        if (!excludedFields.includes(field)) {
-            includedFieldInstructions.push(fieldInstructionMap[field]);
-        }
-    }
-    includedFieldInstructions.push("- **articles & sections**: Logically divide the content into articles and then further into sections, each with a bilingual title and body text.");
-
-    const fullPrompt = [
-        ...baseInstructions,
-        ...generationRules,
-        ...includedFieldInstructions,
-        "\nHere is the OCR text:",
-        "{ocr_text}"
-    ].join("\n");
-
-    return PromptTemplate.fromTemplate(fullPrompt);
+  return PromptTemplate.fromTemplate(fullPrompt);
 };
 
 
@@ -487,8 +487,8 @@ const createDynamicPromptTemplate = (controls) => {
  * into a detailed topic format based on dynamic user controls.
  */
 export const extractTopic = async (images, aiControls) => {
-  console.log("ai controls" ,aiControls)
-  
+  console.log("ai controls", aiControls)
+
   const controls = {
     excludedFields: aiControls?.excludedFields || [],
     customInstruction: aiControls?.customInstruction || "",
@@ -508,7 +508,7 @@ export const extractTopic = async (images, aiControls) => {
     const structuredLlm = llm.withStructuredOutput(dynamicSchema);
 
     const imageMessages = await prepareImageMessages(images);
-    
+
     const ocrPrompt = PromptTemplate.fromTemplate(
       `You are an OCR agent. Extract all text from the image(s). Format all mathematical expressions, symbols, and variables strictly in LaTeX (e.g., $F=ma$). Preserve the original text structure.`
     );
@@ -531,21 +531,21 @@ export const extractTopic = async (images, aiControls) => {
       dynamicPrompt,
       structuredLlm,
     ]);
-    
+
     console.log("Invoking main chain for topic structuring...");
     const result = await chain.invoke({});
     console.log("Topic structuring complete.");
-      
+
     return { success: true, data: result };
 
   } catch (error) {
     console.error("Error in extractTopic:", error);
     if (error.message.includes('Failed to parse')) {
-        throw new Error("The AI failed to generate a valid JSON structure. This might be due to overly complex content or a bug. Please try again or with different images.");
+      throw new Error("The AI failed to generate a valid JSON structure. This might be due to overly complex content or a bug. Please try again or with different images.");
     }
     throw error;
   } finally {
-      await cleanupFiles(images, true);
+    await cleanupFiles(images, true);
   }
 };
 
@@ -553,72 +553,72 @@ export const extractTopic = async (images, aiControls) => {
  * Dynamically creates a Zod schema for single article extraction.
  */
 const createDynamicArticleSchema = (excludedFields = []) => {
-    // Helper function to create the formula schema inline to avoid $ref issues.
-    const createFormulaSchema = () => z.object({
-        name: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Name of the formula."),
-        equation: z.string().describe("The mathematical formula or equation in LaTeX format (e.g., '$F=ma$')."),
-        description: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Description of the formula."),
-        derivation: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Derivation of the formula, can be Markdown/HTML."),
-        variables: z.array(z.object({
-            symbol: z.string().describe("The symbol of the variable (e.g., 'F', 'm', 'a')."),
-            definition: z.object({
-                en: z.string().describe("The text in English."),
-                bn: z.string().describe("The text in Bangla."),
-            }).optional().describe("Definition of the variable."),
-            unit: z.object({
-                en: z.string().describe("The text in English."),
-                bn: z.string().describe("The text in Bangla."),
-            }).optional().describe("Unit of the variable (e.g., 'meters/second').")
-        })).optional().describe("List of variables used in the formula."),
+  // Helper function to create the formula schema inline to avoid $ref issues.
+  const createFormulaSchema = () => z.object({
+    name: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Name of the formula."),
+    equation: z.string().describe("The mathematical formula or equation in LaTeX format (e.g., '$F=ma$')."),
+    description: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Description of the formula."),
+    derivation: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Derivation of the formula, can be Markdown/HTML."),
+    variables: z.array(z.object({
+      symbol: z.string().describe("The symbol of the variable (e.g., 'F', 'm', 'a')."),
+      definition: z.object({
+        en: z.string().describe("The text in English."),
+        bn: z.string().describe("The text in Bangla."),
+      }).optional().describe("Definition of the variable."),
+      unit: z.object({
+        en: z.string().describe("The text in English."),
+        bn: z.string().describe("The text in Bangla."),
+      }).optional().describe("Unit of the variable (e.g., 'meters/second').")
+    })).optional().describe("List of variables used in the formula."),
+  });
+
+  const sectionDefinition = {
+    title: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).describe("Title of the section."),
+    body: z.object({
+      en: z.string().describe("The text in English."),
+      bn: z.string().describe("The text in Bangla."),
+    }).optional().describe("Body content of the section, can be Markdown/HTML."),
+  };
+  if (!excludedFields.includes('formulas')) {
+    sectionDefinition.formulas = z.array(createFormulaSchema()).optional().describe("Formulas relevant to THIS SECTION ONLY.");
+  }
+
+  const articleDefinition = {};
+
+  if (!excludedFields.includes('name')) {
+    articleDefinition.name = z.object({
+      en: z.string().describe("A concise and relevant title for the article in English."),
+      bn: z.string().describe("A concise and relevant title for the article in Bangla."),
     });
+  }
 
-    const sectionDefinition = {
-        title: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).describe("Title of the section."),
-        body: z.object({
-            en: z.string().describe("The text in English."),
-            bn: z.string().describe("The text in Bangla."),
-        }).optional().describe("Body content of the section, can be Markdown/HTML."),
-    };
-    if (!excludedFields.includes('formulas')) {
-        sectionDefinition.formulas = z.array(createFormulaSchema()).optional().describe("Formulas relevant to THIS SECTION ONLY.");
-    }
-
-    const articleDefinition = {};
-
-    if (!excludedFields.includes('name')) {
-        articleDefinition.name = z.object({
-            en: z.string().describe("A concise and relevant title for the article in English."),
-            bn: z.string().describe("A concise and relevant title for the article in Bangla."),
-        });
-    }
-
-    if (!excludedFields.includes('learningOutcomes')) {
-        articleDefinition.learningOutcomes = z.object({
-            en: z.array(z.string()).describe("English learning outcomes for the article."),
-            bn: z.array(z.string()).describe("Bangla learning outcomes for the article."),
-        }).optional();
-    }
-    
-    articleDefinition.body = z.object({
-        en: z.string().describe("An introductory paragraph for the article, setting the stage for the sections."),
-        bn: z.string().describe("An introductory paragraph for the article, setting the stage for the sections."),
+  if (!excludedFields.includes('learningOutcomes')) {
+    articleDefinition.learningOutcomes = z.object({
+      en: z.array(z.string()).describe("English learning outcomes for the article."),
+      bn: z.array(z.string()).describe("Bangla learning outcomes for the article."),
     }).optional();
+  }
 
-    articleDefinition.sections = z.array(z.object(sectionDefinition)).describe("An array of sections that make up the article.");
+  articleDefinition.body = z.object({
+    en: z.string().describe("An introductory paragraph for the article, setting the stage for the sections."),
+    bn: z.string().describe("An introductory paragraph for the article, setting the stage for the sections."),
+  }).optional();
 
-    return z.object(articleDefinition);
+  articleDefinition.sections = z.array(z.object(sectionDefinition)).describe("An array of sections that make up the article.");
+
+  return z.object(articleDefinition);
 };
 
 
@@ -626,48 +626,48 @@ const createDynamicArticleSchema = (excludedFields = []) => {
  * Dynamically creates a prompt template for single article extraction.
  */
 const createDynamicArticlePromptTemplate = (controls) => {
-    const { excludedFields, customInstruction, sections } = controls;
+  const { excludedFields, customInstruction, sections } = controls;
 
-    let baseInstructions = [
-      "You are an expert academic content processor for Bangladeshi HSC/SSC students.",
-      "Analyze the text from the provided images and generate a structured JSON output for a single, cohesive article.",
-      "Ensure ALL mathematical expressions are strictly in LaTeX format (e.g., '$F=ma$').",
-      "Your final output must be ONLY a valid JSON object. Do not include any other text or markdown."
-    ];
+  let baseInstructions = [
+    "You are an expert academic content processor for Bangladeshi HSC/SSC students.",
+    "Analyze the text from the provided images and generate a structured JSON output for a single, cohesive article.",
+    "Ensure ALL mathematical expressions are strictly in LaTeX format (e.g., '$F=ma$').",
+    "Your final output must be ONLY a valid JSON object. Do not include any other text or markdown."
+  ];
 
-    let generationRules = [
-        `**Content Generation Rules:**`,
-        `1.  **Sections**: You MUST logically divide the content into between ${sections.min} and ${sections.max} sections.`
-    ];
+  let generationRules = [
+    `**Content Generation Rules:**`,
+    `1.  **Sections**: You MUST logically divide the content into between ${sections.min} and ${sections.max} sections.`
+  ];
 
-    if (customInstruction) {
-        generationRules.push(`2.  **Critical Custom Instruction**: You MUST strictly follow this high-priority instruction: "${customInstruction}"`);
-    }
+  if (customInstruction) {
+    generationRules.push(`2.  **Critical Custom Instruction**: You MUST strictly follow this high-priority instruction: "${customInstruction}"`);
+  }
 
-    let fieldInstructions = ["**JSON Field Instructions:**"];
-    if (!excludedFields.includes('name')) {
-        fieldInstructions.push("- **name**: FIRST, create a concise, descriptive title for the entire article in both English and Bangla.");
-    }
-    
-    if (!excludedFields.includes('learningOutcomes')) {
-        fieldInstructions.push("- **learningOutcomes**: List the key learning outcomes for the article.");
-    }
-    fieldInstructions.push("- **body**: Write an introductory paragraph that provides more detail than the description and sets the stage for the sections that follow.");
-    fieldInstructions.push("- **sections**: Divide the main content into logical sections. Each section must have a bilingual `title` and `body`.");
+  let fieldInstructions = ["**JSON Field Instructions:**"];
+  if (!excludedFields.includes('name')) {
+    fieldInstructions.push("- **name**: FIRST, create a concise, descriptive title for the entire article in both English and Bangla.");
+  }
 
-    if (!excludedFields.includes('formulas')) {
-        fieldInstructions.push("- **IMPORTANT**: Extract mathematical formulas and place them in the `formulas` array ONLY within the specific section where they are explained or used. If a section has no formulas, use an empty array `[]`.");
-    }
+  if (!excludedFields.includes('learningOutcomes')) {
+    fieldInstructions.push("- **learningOutcomes**: List the key learning outcomes for the article.");
+  }
+  fieldInstructions.push("- **body**: Write an introductory paragraph that provides more detail than the description and sets the stage for the sections that follow.");
+  fieldInstructions.push("- **sections**: Divide the main content into logical sections. Each section must have a bilingual `title` and `body`.");
 
-    const fullPrompt = [
-        ...baseInstructions,
-        ...generationRules,
-        ...fieldInstructions,
-        "\nHere is the OCR text:",
-        "{ocr_text}"
-    ].join("\n");
+  if (!excludedFields.includes('formulas')) {
+    fieldInstructions.push("- **IMPORTANT**: Extract mathematical formulas and place them in the `formulas` array ONLY within the specific section where they are explained or used. If a section has no formulas, use an empty array `[]`.");
+  }
 
-    return PromptTemplate.fromTemplate(fullPrompt);
+  const fullPrompt = [
+    ...baseInstructions,
+    ...generationRules,
+    ...fieldInstructions,
+    "\nHere is the OCR text:",
+    "{ocr_text}"
+  ].join("\n");
+
+  return PromptTemplate.fromTemplate(fullPrompt);
 };
 
 /**
@@ -675,8 +675,8 @@ const createDynamicArticlePromptTemplate = (controls) => {
  * into a single detailed article format based on dynamic user controls.
  */
 export const extractArticle = async (images, aiControls) => {
-  console.log("ai controls for article extraction" ,aiControls)
-  
+  console.log("ai controls for article extraction", aiControls)
+
   const controls = {
     excludedFields: aiControls?.excludedFields || [],
     customInstruction: aiControls?.customInstruction || "",
@@ -695,7 +695,7 @@ export const extractArticle = async (images, aiControls) => {
     const structuredLlm = llm.withStructuredOutput(dynamicSchema);
 
     const imageMessages = await prepareImageMessages(images);
-    
+
     const ocrPrompt = PromptTemplate.fromTemplate(
       `You are an OCR agent. Extract all text from the image(s). Format all mathematical expressions, symbols, and variables strictly in LaTeX (e.g., $F=ma$). Preserve the original text structure.`
     );
@@ -718,21 +718,21 @@ export const extractArticle = async (images, aiControls) => {
       dynamicPrompt,
       structuredLlm,
     ]);
-    
+
     console.log("Invoking main chain for article structuring...");
     const result = await chain.invoke({});
     console.log("Article structuring complete.");
-      
+
     return { success: true, data: result };
 
   } catch (error) {
     console.error("Error in extractArticle:", error);
     if (error.message.includes('Failed to parse')) {
-        throw new Error("The AI failed to generate a valid JSON structure. This might be due to overly complex content or a bug. Please try again or with different images.");
+      throw new Error("The AI failed to generate a valid JSON structure. This might be due to overly complex content or a bug. Please try again or with different images.");
     }
     throw error;
   } finally {
-      await cleanupFiles(images, true);
+    await cleanupFiles(images, true);
   }
 };
 
@@ -795,26 +795,26 @@ export const translateText = async (text, targetLang) => {
  * @returns {Promise<Object>} The generated metadata.
  */
 export const generateMetadata = async (context) => {
-    console.log("Generating metadata for context:", context);
-    const { subject, board, year, level, group, examType, topic } = context;
+  console.log("Generating metadata for context:", context);
+  const { subject, board, year, level, group, examType, topic } = context;
 
-    try {
-        const metadataSchema = z.object({
-            aliases: z.object({
-                en: z.array(z.string()).describe("List of English aliases."),
-                bn: z.array(z.string()).describe("List of Bangla aliases."),
-                banglish: z.array(z.string()).describe("List of Banglish aliases."),
-            }),
-            tags: z.object({
-                en: z.array(z.string()).describe("List of English tags."),
-                bn: z.array(z.string()).describe("List of Bangla tags."),
-            }),
-        });
+  try {
+    const metadataSchema = z.object({
+      aliases: z.object({
+        en: z.array(z.string()).describe("List of English aliases."),
+        bn: z.array(z.string()).describe("List of Bangla aliases."),
+        banglish: z.array(z.string()).describe("List of Banglish aliases."),
+      }),
+      tags: z.object({
+        en: z.array(z.string()).describe("List of English tags."),
+        bn: z.array(z.string()).describe("List of Bangla tags."),
+      }),
+    });
 
-        const llm = createModel(metadataSchema);
+    const llm = createModel(metadataSchema);
 
-        const prompt = PromptTemplate.fromTemplate(
-            `You are an expert academic assistant for the Bangladeshi NCTB curriculum.
+    const prompt = PromptTemplate.fromTemplate(
+      `You are an expert academic assistant for the Bangladeshi NCTB curriculum.
             Generate relevant aliases and tags for a Creative Question based on the following context:
             
             Subject: {subject}
@@ -833,29 +833,128 @@ export const generateMetadata = async (context) => {
                - Provide them in English and Bangla.
             3. **Output**: Return ONLY a valid JSON object matching the schema.
             `
-        );
+    );
 
-        const chain = RunnableSequence.from([
-            prompt,
-            llm
-        ]);
+    const chain = RunnableSequence.from([
+      prompt,
+      llm
+    ]);
 
-        console.log("Invoking AI for metadata generation...");
-        const result = await chain.invoke({
-            subject: subject || "N/A",
-            board: board || "N/A",
-            year: year || "N/A",
-            level: level || "N/A",
-            group: group || "N/A",
-            examType: examType || "",
-            topic: topic || ""
+    console.log("Invoking AI for metadata generation...");
+    const result = await chain.invoke({
+      subject: subject || "N/A",
+      board: board || "N/A",
+      year: year || "N/A",
+      level: level || "N/A",
+      group: group || "N/A",
+      examType: examType || "",
+      topic: topic || ""
+    });
+    console.log("Metadata generation complete.");
+
+    return result;
+
+  } catch (error) {
+    console.error("Error in generateMetadata:", error);
+    throw error;
+  }
+};
+
+/**
+ * Extracts specific metadata and content for bulk question ingestion.
+ * @param {Array<Object>} files - Image files.
+ * @param {Object} context - { year, subjectName }.
+ */
+export const extractBulkQuestion = async (files, context) => {
+  console.log("Extracting bulk question with context:", context);
+  const { year, subjectName } = context;
+
+  try {
+    // Define Schema for Bulk Extraction
+    const bulkMetadataSchema = z.object({
+      board: z.string().describe("The Board name extracted from the question text (e.g., 'Dhaka Board', 'Rajshahi Board'). If not found, return empty string."),
+      partChapters: z.object({
+        a: z.string().describe("Inferred chapter name for Part A based on the subject context."),
+        b: z.string().describe("Inferred chapter name for Part B based on the subject context."),
+        c: z.string().describe("Inferred chapter name for Part C based on the subject context."),
+        d: z.string().describe("Inferred chapter name for Part D based on the subject context."),
+      }),
+      mainChapter: z.string().describe("The inferred main chapter name for the overall question."),
+      aliases: z.object({
+        en: z.array(z.string()).describe("Search aliases in English."),
+        bn: z.array(z.string()).describe("Search aliases in Bangla."),
+        banglish: z.array(z.string()).describe("Search aliases in Banglish."),
+      }),
+      tags: z.object({
+        en: z.array(z.string()).describe("Related keywords/tags in English."),
+        bn: z.array(z.string()).describe("Related keywords/tags in Bangla."),
+      }),
+    });
+
+    const bulkPartSchema = z.object({
+      question: createContentBlockSchema().describe("The question text."),
+      answer: createContentBlockSchema().describe("The answer text (if extracted)."),
+    });
+
+    const bulkQuestionSchema = z.object({
+      stem: createContentBlockSchema().describe("The stem or stimulus scenario of the question."),
+      a: bulkPartSchema.describe("Part A (Knowledge)"),
+      b: bulkPartSchema.describe("Part B (Comprehension)"),
+      c: bulkPartSchema.describe("Part C (Application)"),
+      d: bulkPartSchema.describe("Part D (Higher Order Thinking)"),
+      extractedMetadata: bulkMetadataSchema,
+    });
+
+    const llm = createModel(bulkQuestionSchema);
+    const imageMessages = await prepareImageMessages(files);
+
+    const prompt = PromptTemplate.fromTemplate(
+      `You are an expert OCR and academic classifier for Bangladeshi Curriculum (NCTB).
+            
+            **Context**:
+            - Subject: {subjectName}
+            - Year: {year}
+            
+            **Tasks**:
+            1. **OCR & Extraction**: Extract the Creative Question (Stem, Parts A, B, C, D) from the image.
+            2. **Translation**: For every text field (question text, answer text, etc.), provide BOTH:
+               - 'en': English translation.
+               - 'bn': Original Bangla text (or Bangla translation if original is English).
+            3. **Metadata Extraction**:
+               - Identify the **Education Board** (e.g., "Dhaka Board", "Dinajpur Board") from the text.
+               - Infer the **Chapter Name** for EACH part (a, b, c, d) based on the provided Subject ({subjectName}) and the content of that part.
+               - Infer the **Main Chapter** for the overall question.
+               - Generate **Aliases** and **Tags**.
+            
+            **Formatting Rules**:
+            - Format math strictly in LaTeX (e.g., $E=mc^2$).
+            - Return strictly JSON matching the schema.
+            `
+    );
+
+    const chain = RunnableSequence.from([
+      async () => {
+        const formattedPrompt = await prompt.format({ subjectName: subjectName || "General", year: year || new Date().getFullYear() });
+        const msg = new HumanMessage({
+          content: [
+            { type: "text", text: formattedPrompt },
+            ...imageMessages,
+          ]
         });
-        console.log("Metadata generation complete.");
+        return [msg];
+      },
+      llm
+    ]);
 
-        return result;
+    console.log("Invoking AI for bulk extraction...");
+    const result = await chain.invoke({});
+    console.log("Bulk extraction complete.");
+    return { success: true, data: result };
 
-    } catch (error) {
-        console.error("Error in generateMetadata:", error);
-        throw error;
-    }
+  } catch (error) {
+    console.error("Error in extractBulkQuestion:", error);
+    throw error;
+  } finally {
+    await cleanupFiles(files, true);
+  }
 };

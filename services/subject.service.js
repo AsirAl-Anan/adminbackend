@@ -13,6 +13,67 @@ export const createSubject = async (subjectData) => {
   return subject;
 };
 
+// NEW: Create Subject with Chapters and Topics (Bulk)
+export const createSubjectFull = async (payload) => {
+  const { chapters: chaptersData, ...subjectData } = payload;
+
+  // 1. Create Subject
+  const subject = new Subject(subjectData);
+  await subject.save();
+
+  const chapterIds = [];
+
+  // 2. Iterate and Create Chapters
+  if (chaptersData && chaptersData.length > 0) {
+    for (const chapterData of chaptersData) {
+      const { topics: topicsData, ...restChapterData } = chapterData;
+
+      const chapter = new Chapter({
+        ...restChapterData,
+        subjectId: subject._id,
+      });
+      await chapter.save();
+      chapterIds.push(chapter._id);
+
+      const topicIds = [];
+
+      // 3. Iterate and Create Topics
+      if (topicsData && topicsData.length > 0) {
+        for (const topicData of topicsData) {
+          // Basic topic creation for bulk upload. 
+          // If deeper structures (articles/formulas) are needed in one go, 
+          // we can reuse createTopic logic but might be too heavy. 
+          // Assuming basic info for now.
+          const topic = new Topic({
+            ...topicData,
+            chapterId: chapter._id,
+            subjectId: subject._id,
+            // Ensure defaults
+            articles: [],
+            tags: topicData.tags || [],
+            aliases: topicData.aliases || { english: [], bangla: [], banglish: [] }
+          });
+          await topic.save();
+          topicIds.push(topic._id);
+        }
+
+        // Update Chapter with Topic IDs
+        await Chapter.findByIdAndUpdate(chapter._id, {
+          $push: { topics: { $each: topicIds } }
+        });
+      }
+    }
+
+    // Update Subject with Chapter IDs
+    await Subject.findByIdAndUpdate(subject._id, {
+      $push: { chapters: { $each: chapterIds } }
+    });
+  }
+
+  // Return the full subject structure
+  return await getSubjectById(subject._id);
+};
+
 export const getAllSubjects = async () => {
   return await Subject.find().populate({
     path: "chapters",
@@ -115,42 +176,42 @@ export const updateChapter = async (id, chapterData) => {
   return chapter;
 };
 export const getSubjectsByLevelAndGroup = async (level, group) => {
-    if (!level || !group) {
-        throw new AppError("Level and group are required.", 400);
-    }
-    return await Subject.find({ level, group }).select('_id name');
+  if (!level || !group) {
+    throw new AppError("Level and group are required.", 400);
+  }
+  return await Subject.find({ level, group }).select('_id name');
 };
 export const getChaptersBySubject = async (subjectId) => {
-    if (!mongoose.Types.ObjectId.isValid(subjectId)) {
-        throw new AppError("Invalid Subject ID.", 400);
-    }
-    const subject = await Subject.findById(subjectId).populate('chapters', '_id name chapterNo');
-    if (!subject) {
-        throw new AppError("Subject not found.", 404);
-    }
-    return subject.chapters;
+  if (!mongoose.Types.ObjectId.isValid(subjectId)) {
+    throw new AppError("Invalid Subject ID.", 400);
+  }
+  const subject = await Subject.findById(subjectId).populate('chapters', '_id name chapterNo');
+  if (!subject) {
+    throw new AppError("Subject not found.", 404);
+  }
+  return subject.chapters;
 };
 export const getTopicsByChapter = async (chapterId) => {
-    if (!mongoose.Types.ObjectId.isValid(chapterId)) {
-        throw new AppError("Invalid Chapter ID.", 400);
-    }
-    const chapter = await Chapter.findById(chapterId).populate('topics', '_id name topicNumber');
-    if (!chapter) {
-        throw new AppError("Chapter not found.", 404);
-    }
-    return chapter.topics;
+  if (!mongoose.Types.ObjectId.isValid(chapterId)) {
+    throw new AppError("Invalid Chapter ID.", 400);
+  }
+  const chapter = await Chapter.findById(chapterId).populate('topics', '_id name topicNumber');
+  if (!chapter) {
+    throw new AppError("Chapter not found.", 404);
+  }
+  return chapter.topics;
 };
 
 // NEW: Get question types for a specific topic
 export const getQuestionTypesByTopic = async (topicId) => {
-    if (!mongoose.Types.ObjectId.isValid(topicId)) {
-        throw new AppError("Invalid Topic ID.", 400);
-    }
-    const topic = await Topic.findById(topicId).select('questionTypes');
-    if (!topic) {
-        throw new AppError("Topic not found.", 404);
-    }
-    return topic.questionTypes;
+  if (!mongoose.Types.ObjectId.isValid(topicId)) {
+    throw new AppError("Invalid Topic ID.", 400);
+  }
+  const topic = await Topic.findById(topicId).select('questionTypes');
+  if (!topic) {
+    throw new AppError("Topic not found.", 404);
+  }
+  return topic.questionTypes;
 };
 
 export const deleteChapter = async (id) => {
@@ -269,11 +330,11 @@ export const bulkCreateTopics = async (chapterId, subjectId, topicsData) => {
       chapterId,
       subjectId,
       // Initialize other required fields with defaults or empty values if needed
-      articles: [], 
+      articles: [],
       tags: [],
       aliases: { english: [], bangla: [], banglish: [] }
     });
-    
+
     await topic.save();
     createdTopics.push(topic);
     topicIds.push(topic._id);
@@ -365,14 +426,14 @@ export const updateTopic = async (id, topicData) => {
   const allExistingFormulaIds = [];
   existingTopic.articles.forEach(article => {
     if (article.formulas) {
-        article.formulas.forEach(fid => allExistingFormulaIds.push(fid.toString()));
+      article.formulas.forEach(fid => allExistingFormulaIds.push(fid.toString()));
     }
     if (article.sections) {
-        article.sections.forEach(section => {
-            if (section.formulas) {
-                section.formulas.forEach(fid => allExistingFormulaIds.push(fid.toString()));
-            }
-        });
+      article.sections.forEach(section => {
+        if (section.formulas) {
+          section.formulas.forEach(fid => allExistingFormulaIds.push(fid.toString()));
+        }
+      });
     }
   });
 

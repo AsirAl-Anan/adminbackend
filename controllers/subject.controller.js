@@ -11,6 +11,16 @@ export const createSubject = async (req, res, next) => {
   }
 };
 
+// NEW: Create Subject Full (Bulk)
+export const createSubjectFull = async (req, res, next) => {
+  try {
+    const subject = await subjectService.createSubjectFull(req.body);
+    res.status(201).json(subject);
+  } catch (error) {
+    next(error);
+  }
+};
+
 export const getAllSubjects = async (req, res, next) => {
   try {
     const subjects = await subjectService.getAllSubjects();
@@ -22,14 +32,14 @@ export const getAllSubjects = async (req, res, next) => {
 
 // NEW: Get subjects by level and group
 export const getSubjectsByFilter = async (req, res, next) => {
-    try {
-        const { level, group } = req.query;
-        console.log("level:", level, "group:", group);
-        const subjects = await subjectService.getSubjectsByLevelAndGroup(level, group);
-        res.status(200).json(subjects);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const { level, group } = req.query;
+    console.log("level:", level, "group:", group);
+    const subjects = await subjectService.getSubjectsByLevelAndGroup(level, group);
+    res.status(200).json(subjects);
+  } catch (error) {
+    next(error);
+  }
 };
 
 
@@ -76,12 +86,12 @@ export const createChapter = async (req, res, next) => {
 
 // NEW: Get chapters for a subject
 export const getChaptersBySubject = async (req, res, next) => {
-    try {
-        const chapters = await subjectService.getChaptersBySubject(req.params.subjectId);
-        res.status(200).json(chapters);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const chapters = await subjectService.getChaptersBySubject(req.params.subjectId);
+    res.status(200).json(chapters);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const updateChapter = async (req, res, next) => {
@@ -132,23 +142,23 @@ export const bulkCreateTopics = async (req, res, next) => {
 
 // NEW: Get topics for a chapter
 export const getTopicsByChapter = async (req, res, next) => {
-    try {
-        const topics = await subjectService.getTopicsByChapter(req.params.chapterId);
-        res.status(200).json(topics);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    const topics = await subjectService.getTopicsByChapter(req.params.chapterId);
+    res.status(200).json(topics);
+  } catch (error) {
+    next(error);
+  }
 };
 
 // NEW: Get question types for a topic
 export const getQuestionTypesByTopic = async (req, res, next) => {
-    try {
-      console.log("req.params.topicId:", req.params.topicId);
-        const questionTypes = await subjectService.getQuestionTypesByTopic(req.params.topicId);
-        res.status(200).json(questionTypes);
-    } catch (error) {
-        next(error);
-    }
+  try {
+    console.log("req.params.topicId:", req.params.topicId);
+    const questionTypes = await subjectService.getQuestionTypesByTopic(req.params.topicId);
+    res.status(200).json(questionTypes);
+  } catch (error) {
+    next(error);
+  }
 };
 
 export const updateTopic = async (req, res, next) => {
