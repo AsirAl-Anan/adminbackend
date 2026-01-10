@@ -62,7 +62,7 @@ const initializeApp = async () => {
 
     app.use((req, res, next) => {
       console.log(true)
-        if (process.env.NODE_ENV === 'development' && req.path === '/api/v1/auth/register') {
+        if (req.path.startsWith('/api/v1/auth')) {
             return next();
         }
         verifyUser(req, res, next);
