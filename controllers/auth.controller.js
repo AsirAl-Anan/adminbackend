@@ -144,9 +144,9 @@ const oAuth2Client = new OAuth2Client(
   process.env.AUTH_CLIENT_SECRET,
   process.env.AUTH_REDIRECT_URI
 );
-console.log("oAuth2Client id",process.env.AUTH_CLIENT_ID )
-console.log("oAuth2Client secret",process.env.AUTH_CLIENT_SECRET )
-console.log("oAuth2Client redirect uri",process.env.AUTH_REDIRECT_URI )
+console.log("oAuth2Client id", process.env.AUTH_CLIENT_ID)
+console.log("oAuth2Client secret", process.env.AUTH_CLIENT_SECRET)
+console.log("oAuth2Client redirect uri", process.env.AUTH_REDIRECT_URI)
 export const adminGoogleController = async (req, res) => {
   try {
 
@@ -181,11 +181,8 @@ export const adminGoogleCallbackController = async (req, res) => {
 
     //fetching user information using id_token
     const idToken = tokens.id_token;
-    const ticket = await oAuth2Client.verifyIdToken({
-      idToken,
-      audience: process.env.AUTH_CLIENT_ID,
-    })
-    const userData = ticket.getPayload();
+    
+    const userData = jwt.decode(idToken);
 
     if (!userData) {
       return res.redirect(`${CLIENT_URL}/login?error=Invalid token`)
@@ -198,8 +195,6 @@ export const adminGoogleCallbackController = async (req, res) => {
       return res.redirect(`${CLIENT_URL}/login?error=Admin not found`)
     }
 
-    // --- CHANGE START: Sign Email with JWT ---
-    // Instead of storing raw email, we store a signed token
     const token = jwt.sign({ email: admin.email }, JWT_SECRET, { expiresIn: '5m' });
 
     res.cookie("auth_session", token, {
@@ -208,7 +203,6 @@ export const adminGoogleCallbackController = async (req, res) => {
       sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
       maxAge: 60 * 5 * 1000 // 5 minutes
     })
-    // --- CHANGE END ---
 
     console.log("Cookie set with JWT");
     res.redirect(`${CLIENT_URL}/login?email=` + admin.email)
