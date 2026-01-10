@@ -16,7 +16,7 @@ import splitText from "./langchain/index.js";
 import messageRouter from "./routes/message.routes.js";
 import { searchSimilarChunks } from "./langchain/index.js";
 import uploadRouter from './routes/upload.routes.js';
-
+import { verifyUser } from "./middlewares/auth.middleware.js"; 
 const initializeApp = async () => {
     const app = express();
 
@@ -58,8 +58,15 @@ const initializeApp = async () => {
 
 
 
-
     app.use(express.static("uploads"))
+
+    app.use((req, res, next) => {
+      console.log(true)
+        if (process.env.NODE_ENV === 'development' && req.path === '/api/v1/auth/register') {
+            return next();
+        }
+        verifyUser(req, res, next);
+    });
 
     app.use("/api/v1/auth", AuthRouter);
     app.use("/api/v1/message", messageRouter );
