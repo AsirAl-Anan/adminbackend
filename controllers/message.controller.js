@@ -39,7 +39,7 @@ res.status(201).json({
 }
 
 export const getMessagesController =async (req,res) =>{ 
-    const admin = req.session.admin  // admin -> email of admin
+    const employee = req.session.employee  // employee -> email of employee
    const allMessages = await fetchMessages();
     if(allMessages.length === 0){
         return res.status(200).json({
@@ -55,7 +55,7 @@ export const getMessagesController =async (req,res) =>{
             ...jsMessage,
             sender: jsMessage?.sender?.split("@")[0],
             time :jsMessage.createdAt.toLocaleString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }),
-            isOwn: jsMessage.sender === admin,
+            isOwn: jsMessage.sender === employee,
         }
     })
     res.status(200).json({
