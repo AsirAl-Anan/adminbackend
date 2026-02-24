@@ -165,7 +165,6 @@ export const adminGoogleController = async (req, res) => {
   }
 }
 export const adminGoogleCallbackController = async (req, res) => {
-  console.log("inside google call back controller")
 
 
   const code = req.query.code;
