@@ -1,6 +1,6 @@
 export const verifyUser =(req, res, next) =>{
 
-    const user =req.session.admin 
+    const user =req.session.employee 
     console.log("user is user",user)
     if(!user){
         return res.status(401).json({

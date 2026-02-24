@@ -1,7 +1,7 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "backend folder admin panel",
+  "description": "backend folder employee panel",
   "license": "ISC",
   "author": "",
   "type": "module",
@@ -37,6 +37,7 @@
     "multer": "^2.0.2",
     "redis": "^5.6.0",
     "socket.io": "^4.8.1",
+    "ua-parser-js": "^2.0.8",
     "uuid": "^13.0.0",
     "uuidv4": "^6.2.13",
     "zod": "^3.25.76"
