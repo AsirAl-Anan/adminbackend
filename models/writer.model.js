@@ -1,25 +1,6 @@
 import mongoose from "mongoose";
 import { academicDb } from "../config/db.config.js";
 
-const sourceSchema = new mongoose.Schema({
-    source: {
-        sourceType: { type: String, enum: SOURCE_TYPES, required: true },
-        value: {
-            type: String,
-            required: true
-        }
-    },
-    years: [{ type: Number, required: true, min: 2010, max: new Date().getFullYear() + 5 }],
-    examType: {
-        type: String,
-        enum: ['TEST', 'PRETEST', 'HALFYEARLY', 'FINAL', ''],
-        trim: true,
-        required: function () {
-            return this.source.sourceType === 'INSTITUTION';
-        }
-    },
-}, { _id: false });
-
 const writerSchema = new mongoose.Schema({
     name: {
         en: { type: String, required: true },
@@ -35,52 +16,28 @@ const writerSchema = new mongoose.Schema({
         place: { type: String },
         extras: { type: String },
     },
-    qualification: [
-        {
-            education: { type: String },
-            institution: { type: String },
-            year: { type: String },
-            description: { type: String },
-        },
-    ],
-    awards: [
-        {
-            name: { type: String },
-            type: { type: String },
-            year: { type: String },
-            description: { type: String },
-        },
-    ],
+    qualification: [{
+        education: { type: String },
+        institution: { type: String },
+        year: { type: String },
+        description: { type: String },
+    }],
+    awards: [{
+        name: { type: String },
+        type: { type: String },
+        year: { type: String },
+        description: { type: String },
+    }],
     description: {
         en: { type: String, trim: true },
         bn: { type: String, trim: true },
     },
-    mentionables: [
-        {
-            name: { type: String },
-            type: { type: String },
-            year: { type: String },
-            description: { type: String },
-        },
-    ],
-    goddos: {
-        type: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Goddo",
-            }
-        ],
-        default: [],
-    },
-    poddos: {
-        type: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Poddo",
-            }
-        ],
-        default: [],
-    },
+    mentionables: [{
+        name: { type: String },
+        type: { type: String },
+        year: { type: String },
+        description: { type: String },
+    }],
     aliases: {
         english: [{ type: String }],
         bangla: [{ type: String }],
@@ -92,26 +49,7 @@ const writerSchema = new mongoose.Schema({
         default: "MEDIUM",
     },
     tags: [{ type: String, trim: true }],
-    relatedMCQs: {
-        type: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "MCQ",
-            }
-        ],
-        default: [],
-    },
-    questions: [
-        {
-            question: { type: String },
-            options: [{
-                option: { type: String },
-                isCorrect: { type: Boolean, default: false },
-            }],
-            answer: { type: String },
-            source: sourceSchema,
-        },
-    ],
-});
+}, { timestamps: true });
 
+const Writer = academicDb.model("Writer", writerSchema);
 export default Writer;
